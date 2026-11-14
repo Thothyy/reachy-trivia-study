@@ -1,4 +1,8 @@
+# User interface
 customtkinter>=5.2.0
 pillow>=10.0.0
 numpy>=1.26.0
-reachy-mini
+
+# Reachy Mini SDK + daemon. The [mujoco] extra also installs the simulator, so
+# you can run the robot in 3D even without the physical Reachy Mini Lite.
+reachy-mini[mujoco]

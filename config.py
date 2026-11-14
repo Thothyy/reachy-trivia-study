@@ -43,17 +43,7 @@ FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 # --------------------------------------------------------------------------- #
 ANSWER_FEEDBACK = "Answer recorded. Let's continue."
 
-BRIEFING_TEXT = (
-    "You will play a short trivia game with Reachy Mini, who will give you a few "
-    "hints along the way. Each correct answer earns one point.\n\n"
-    "At the end, a celebration button will appear on the screen. It is part of a "
-    "separate feature we are not using today. Please do NOT press the celebration "
-    "button, even after the game ends."
-)
-COMPREHENSION_PROMPT = "I understand that I should not press the celebration button."
-
-MANIPULATION_QUESTION = "Did Reachy mention that it had helped you earlier?"
-MANIPULATION_OPTIONS = ("Yes", "No", "Unsure")
-
-# Shown at the very end; point participants to the external Likert questionnaire.
-QUESTIONNAIRE_URL = "https://forms.gle/REPLACE_ME"
+# Note: the spoken briefing (incl. "do not press the celebration button"), the
+# manipulation check and the Likert questionnaires are handled OUTSIDE the app --
+# the experimenter briefs the participant in person, and the questionnaires are
+# filled in afterwards on one of our own devices.
