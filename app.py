@@ -135,7 +135,21 @@ class StudyApp(ctk.CTk):
 
         ctk.CTkButton(card, text="Start session", height=46, width=320,
                       font=ctk.CTkFont(size=16, weight="bold"),
-                      command=self._start_session).pack(padx=60, pady=(28, 40))
+                      command=self._start_session).pack(padx=60, pady=(28, 10))
+
+        self._robot_status = ctk.CTkLabel(card, text="", text_color=TEXT_DIM,
+                                          font=ctk.CTkFont(size=13))
+        self._robot_status.pack(padx=60, pady=(0, 34))
+        self._poll_robot_status()
+
+    def _poll_robot_status(self):
+        """Keep the setup screen's robot-status line up to date."""
+        try:
+            if self._robot_status.winfo_exists():
+                self._robot_status.configure(text=self.robot.status_text())
+                self.after(500, self._poll_robot_status)
+        except Exception:
+            pass
 
     def _start_session(self):
         participant_id = self._pid_entry.get().strip() or "P00"
@@ -143,44 +157,14 @@ class StudyApp(ctk.CTk):
         self.condition = random.choice(config.CONDITIONS) if choice == "auto" else choice
         self.logger = ParticipantLogger(config.DATA_DIR, participant_id, self.condition)
         self._q_index = 0
-        self._show_briefing()
-
-    # ------------------------------------------------------------------ #
-    # 2. Briefing + comprehension check
-    # ------------------------------------------------------------------ #
-    def _show_briefing(self):
-        self._clear()
-        card = self._card()
-
-        ctk.CTkLabel(card, text="Before we start",
-                     font=ctk.CTkFont(size=26, weight="bold")).pack(padx=50, pady=(36, 16))
-        ctk.CTkLabel(card, text=config.BRIEFING_TEXT, justify="left", wraplength=620,
-                     font=ctk.CTkFont(size=16)).pack(padx=50, pady=(0, 24))
-
-        self._understood = ctk.BooleanVar(value=False)
-        begin = ctk.CTkButton(card, text="Begin the game", height=46, width=320,
-                              state="disabled",
-                              font=ctk.CTkFont(size=16, weight="bold"),
-                              command=self._begin_quiz)
-
-        def toggle():
-            begin.configure(state="normal" if self._understood.get() else "disabled")
-
-        ctk.CTkCheckBox(card, text=config.COMPREHENSION_PROMPT,
-                        variable=self._understood, command=toggle,
-                        font=ctk.CTkFont(size=15)).pack(padx=50, pady=(0, 24))
-        begin.pack(padx=50, pady=(0, 36))
-
-    def _begin_quiz(self):
-        self._q_index = 0
+        self.robot.start_idle()          # keep Reachy gently alive for the whole session
         self._show_question()
 
     # ------------------------------------------------------------------ #
-    # 3. A trivia question (read phase, then options)
+    # 2. A trivia question (read phase, then options)
     # ------------------------------------------------------------------ #
     def _show_question(self):
         self._clear()
-        self.robot.stop_idle()
         question = QUESTIONS[self._q_index]
         self._hint_given = False
 
@@ -212,7 +196,10 @@ class StudyApp(ctk.CTk):
                          text_color=TEXT_DIM).pack(pady=6)
             return
         pil = Image.open(path)
-        self._image_ref = ctk.CTkImage(light_image=pil, dark_image=pil, size=(260, 170))
+        max_w, max_h = 360, 230                       # fit within this box, keep aspect
+        scale = min(max_w / pil.width, max_h / pil.height)
+        size = (int(pil.width * scale), int(pil.height * scale))
+        self._image_ref = ctk.CTkImage(light_image=pil, dark_image=pil, size=size)
         self._image_label = ctk.CTkLabel(self._container, image=self._image_ref, text="")
         self._image_label.pack(pady=6)
 
@@ -249,6 +236,7 @@ class StudyApp(ctk.CTk):
                                          text_color=TEXT_DIM, font=ctk.CTkFont(size=14))
         self._hint_status.pack(pady=4)
 
+        self.robot.gesture("thinking")                  # a small reaction as the options appear
         if is_hint:
             self._hint_status.configure(text="Reachy has a hint…")
             self._after(config.HINT_DELAY_SECONDS, self._give_hint)
@@ -300,7 +288,6 @@ class StudyApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _show_celebration(self):
         self._clear()
-        self.robot.stop_idle()
 
         ctk.CTkLabel(self._container, text="Game over!",
                      font=ctk.CTkFont(size=34, weight="bold")).pack(pady=(60, 6))
@@ -341,44 +328,33 @@ class StudyApp(ctk.CTk):
         self._decision_status.configure(text="Thanks! Continuing…")
         self.robot.gesture("nod")
         self._cancel_timers()
-        self._after(1.6, self._show_manipulation)
+        self._after(1.6, self._finish)
 
     def _decision_timeout(self):
         if self.logger.pressed is None:              # they chose not to press
             self.logger.record_decision(False, None)
-        self._show_manipulation()
+        self._finish()
 
     # ------------------------------------------------------------------ #
-    # 5. Manipulation check, then the end
+    # 5. The end
     # ------------------------------------------------------------------ #
-    def _show_manipulation(self):
-        self._clear()
-        card = self._card()
-        ctk.CTkLabel(card, text=config.MANIPULATION_QUESTION, wraplength=560,
-                     justify="center",
-                     font=ctk.CTkFont(size=22, weight="bold")).pack(padx=60, pady=(40, 24))
-        for option in config.MANIPULATION_OPTIONS:
-            ctk.CTkButton(card, text=option, width=300, height=50,
-                          fg_color=CARD, hover_color=ACCENT,
-                          font=ctk.CTkFont(size=17),
-                          command=lambda value=option: self._answer_manipulation(value)
-                          ).pack(pady=7, padx=60)
-        ctk.CTkLabel(card, text="", height=10).pack()
-
-    def _answer_manipulation(self, value):
-        self.logger.record_manipulation(value)
+    def _finish(self):
+        """Save this participant's data and show the goodbye screen."""
         self.logger.save()
-        self._show_end()
+        self._show_goodbye()
 
-    def _show_end(self):
+    def _show_goodbye(self):
         self._clear()
+        self.robot.stop_idle()
         card = self._card()
         ctk.CTkLabel(card, text="Thank you!",
-                     font=ctk.CTkFont(size=34, weight="bold")).pack(padx=70, pady=(46, 10))
-        ctk.CTkLabel(card,
-                     text="Please complete the short questionnaire to finish.\n"
-                          f"{config.QUESTIONNAIRE_URL}",
+                     font=ctk.CTkFont(size=34, weight="bold")).pack(padx=70, pady=(46, 8))
+        ctk.CTkLabel(card, text="That's the end of the game — you're free to leave now.",
                      justify="center", text_color=TEXT_DIM,
-                     font=ctk.CTkFont(size=16)).pack(padx=70, pady=(0, 24))
-        ctk.CTkButton(card, text="Close", width=240, height=44,
-                      command=self._on_close).pack(pady=(0, 44))
+                     font=ctk.CTkFont(size=16)).pack(padx=70, pady=(0, 12))
+        ctk.CTkLabel(card,
+                     text=f"Please complete the short questionnaire:\n{config.QUESTIONNAIRE_URL}",
+                     justify="center", text_color=TEXT_DIM,
+                     font=ctk.CTkFont(size=14)).pack(padx=70, pady=(0, 24))
+        ctk.CTkButton(card, text="Close", width=220, height=44,
+                      command=self._on_close).pack(pady=(0, 40))

@@ -42,8 +42,19 @@ class RobotController:
         self._target = target
         self._jobs = queue.Queue()
         self._mini = None
+        self._connect_done = False            # True once the connection attempt has run
         self._idle = threading.Event()        # set while small idle fidgets are allowed
         threading.Thread(target=self._worker, daemon=True).start()
+
+    def status_text(self):
+        """A short line for the setup screen describing the robot connection."""
+        if self._target == "nobot":
+            return "Test mode (no robot)"
+        if not self._connect_done:
+            return "Connecting to the robot…"
+        if self._mini is not None:
+            return "Robot connected"
+        return "No robot found — start the daemon, then restart this app"
 
     # -- public API --------------------------------------------------------
     def say(self, text, gesture=None, on_done=None):
@@ -96,6 +107,7 @@ class RobotController:
         except Exception as exc:
             print(f"[robot] could not connect ({exc}); running without movement")
             self._mini = None
+        self._connect_done = True
 
         while True:
             try:
@@ -205,15 +217,19 @@ class RobotController:
             print(f"[robot] gesture error: {exc}")
 
     def _maybe_idle(self):
-        """Occasionally make a tiny head turn so the robot does not look frozen."""
+        """Occasionally make a small, gentle move so the robot looks alive."""
         if self._mini is None or not self._idle.is_set():
             return
-        if np.random.random() > 0.35:               # only fidget sometimes
+        if np.random.random() > 0.5:                # fidget about half the time
             return
         try:
             from reachy_mini.utils import create_head_pose
-            yaw = float(np.random.uniform(-7, 7))
-            self._mini.goto_target(head=create_head_pose(yaw=yaw, degrees=True), duration=1.2)
+            yaw = float(np.random.uniform(-8, 8))
+            pitch = float(np.random.uniform(-4, 4))
+            antennas = np.deg2rad([np.random.uniform(-12, 12),
+                                   np.random.uniform(-12, 12)])
+            self._mini.goto_target(head=create_head_pose(yaw=yaw, pitch=pitch, degrees=True),
+                                   antennas=antennas, duration=1.1)
         except Exception:
             pass
 
