@@ -1,35 +1,27 @@
-"""Talks to Reachy Mini: speech plus a small set of gestures.
+"""Talks to Reachy Mini: speech (through the robot's speaker) plus gestures.
 
 I run every robot command on one background thread (fed by a queue) so the
 window never freezes and one action never overlaps another -- the same pattern
-that worked for my point-and-name project. Speech uses the built-in Windows
-voice in a fresh process, which does not fall silent after repeated use.
+that worked for my point-and-name project.
 
-Set the target to "nobot" to run the whole study UI with no robot at all, which
-is how I build and test the flow on any computer.
+Speech: I render each line to a short WAV with the built-in Windows voice, then
+play it through the robot's own speaker (mini.media.play_sound). If the robot or
+its audio is not available (e.g. "nobot" testing), I fall back to the laptop
+speaker. Either way the robot's gesture plays alongside the speech.
+
+Set the target to "nobot" to run the whole study UI with no robot at all.
 """
 from __future__ import annotations
 
+import os
 import queue
 import subprocess
+import tempfile
 import threading
 import time
+import wave
 
 import numpy as np
-
-
-def speak(text):
-    """Say a line aloud with the built-in Windows voice (blocks until done).
-
-    Args:
-        text: The sentence to speak.
-    """
-    safe = text.replace("'", " ")                       # keep the PowerShell string simple
-    command = ("Add-Type -AssemblyName System.Speech; "
-               "(New-Object System.Speech.Synthesis.SpeechSynthesizer)"
-               f".Speak('{safe}')")
-    subprocess.run(["powershell", "-NoProfile", "-Command", command],
-                   creationflags=subprocess.CREATE_NO_WINDOW)
 
 
 class RobotController:
@@ -54,13 +46,21 @@ class RobotController:
         threading.Thread(target=self._worker, daemon=True).start()
 
     # -- public API --------------------------------------------------------
-    def say(self, text, gesture=None):
-        """Queue a spoken line, optionally with a gesture played alongside it."""
-        self._jobs.put(("say", text, gesture))
+    def say(self, text, gesture=None, on_done=None):
+        """Queue a spoken line.
+
+        Args:
+            text: The sentence to speak.
+            gesture: A gesture name to play alongside the speech, or None.
+            on_done: A callback fired (from the worker thread) once the line has
+                finished -- the app uses it to re-enable the answer buttons after
+                a hint. Marshal it onto the UI thread yourself.
+        """
+        self._jobs.put(("say", text, gesture, on_done))
 
     def gesture(self, name):
         """Queue a named gesture on its own (e.g. 'hint', 'thinking', 'nod')."""
-        self._jobs.put(("gesture", name, None))
+        self._jobs.put(("gesture", name, None, None))
 
     def start_idle(self):
         """Allow small idle movements (used between questions)."""
@@ -72,11 +72,15 @@ class RobotController:
 
     def shutdown(self):
         """Ask the worker to finish and release the robot."""
-        self._jobs.put(("stop", None, None))
+        self._jobs.put(("stop", None, None, None))
 
-    # -- internals ---------------------------------------------------------
+    # -- worker ------------------------------------------------------------
     def _connect(self):
-        """Open the SDK connection for the chosen target, or None for 'nobot'."""
+        """Open the SDK connection for the chosen target, or None for 'nobot'.
+
+        Media is left ON so the robot's speaker is available; the quiz does not
+        use the camera, so there is no conflict.
+        """
         if self._target == "nobot":
             return None
         from reachy_mini import ReachyMini
@@ -95,26 +99,84 @@ class RobotController:
 
         while True:
             try:
-                kind, text, gesture = self._jobs.get(timeout=0.5)
+                kind, text, gesture, on_done = self._jobs.get(timeout=0.5)
             except queue.Empty:
                 self._maybe_idle()
                 continue
             if kind == "stop":
                 break
             if kind == "say":
-                self._do_say(text, gesture)
+                self._do_say(text, gesture, on_done)
             elif kind == "gesture":
                 self._do_gesture(text)
         self._close()
 
-    def _do_say(self, text, gesture):
-        """Speak on a sub-thread so a slow gesture can never cut the speech off."""
-        speaker = threading.Thread(target=speak, args=(text,), daemon=True)
-        speaker.start()
-        if gesture:
-            self._do_gesture(gesture)
-        speaker.join()
+    # -- speech ------------------------------------------------------------
+    def _do_say(self, text, gesture, on_done):
+        """Render the line, play it (robot speaker or laptop), gesture alongside."""
+        wav = self._synth_wav(text)
+        duration = self._wav_seconds(wav)
+        start = time.time()
 
+        used_robot = False
+        if self._mini is not None:
+            try:
+                self._mini.media.play_sound(wav)     # non-blocking on the robot
+                used_robot = True
+            except Exception as exc:
+                print(f"[robot] robot audio failed ({exc}); using laptop speaker")
+
+        if gesture:
+            self._do_gesture(gesture)                # overlaps the audio
+
+        if used_robot:
+            remaining = duration - (time.time() - start)
+            if remaining > 0:
+                time.sleep(remaining)
+        else:
+            self._play_pc(wav)                       # blocking laptop playback
+
+        self._cleanup(wav)
+        if on_done:
+            on_done()
+
+    def _synth_wav(self, text):
+        """Render text to a temporary WAV with the Windows voice; return its path."""
+        path = os.path.join(tempfile.gettempdir(), f"reachy_tts_{time.time_ns()}.wav")
+        safe = text.replace("'", " ")
+        command = ("Add-Type -AssemblyName System.Speech; "
+                   "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                   f"$s.SetOutputToWaveFile('{path}'); $s.Speak('{safe}'); $s.Dispose()")
+        subprocess.run(["powershell", "-NoProfile", "-Command", command],
+                       creationflags=subprocess.CREATE_NO_WINDOW)
+        return path
+
+    @staticmethod
+    def _wav_seconds(path):
+        """Return the exact length of a WAV file in seconds (3.0 if unreadable)."""
+        try:
+            with wave.open(path, "rb") as handle:
+                return handle.getnframes() / float(handle.getframerate())
+        except Exception:
+            return 3.0
+
+    @staticmethod
+    def _play_pc(path):
+        """Play a WAV on the laptop speaker (blocks until finished)."""
+        try:
+            import winsound
+            winsound.PlaySound(path, winsound.SND_FILENAME)
+        except Exception as exc:
+            print(f"[robot] laptop audio failed: {exc}")
+
+    @staticmethod
+    def _cleanup(path):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+
+    # -- movement ----------------------------------------------------------
     def _do_gesture(self, name):
         """Play one of the fixed gestures. Silently does nothing without a robot."""
         if self._mini is None:

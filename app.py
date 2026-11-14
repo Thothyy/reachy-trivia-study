@@ -64,6 +64,7 @@ class StudyApp(ctk.CTk):
         self._hint_given = False
         self._image_ref = None           # keep a reference so the image is not GC'd
         self._decision_start = 0.0
+        self._option_buttons = []        # the four answer buttons for this question
 
         # Pending timers I may need to cancel on a screen change.
         self._timers = []
@@ -229,23 +230,47 @@ class StudyApp(ctk.CTk):
         self._countdown.destroy()
         self._q_label.configure(font=ctk.CTkFont(size=20, weight="bold"))
 
+        is_hint = question["hint"] is not None
         options = ctk.CTkFrame(self._container, fg_color="transparent")
         options.pack(pady=24)
+        self._option_buttons = []
         for text in question["options"]:
-            ctk.CTkButton(options, text=text, width=420, height=58,
-                          fg_color=CARD, hover_color=ACCENT,
-                          font=ctk.CTkFont(size=18),
-                          command=lambda choice=text: self._answer(choice)).pack(pady=7)
+            button = ctk.CTkButton(options, text=text, width=420, height=58,
+                                   fg_color=CARD, hover_color=ACCENT,
+                                   font=ctk.CTkFont(size=18),
+                                   command=lambda choice=text: self._answer(choice))
+            button.pack(pady=7)
+            if is_hint:
+                button.configure(state="disabled")      # locked until the hint is given
+            self._option_buttons.append(button)
 
-        self._q_enabled_at = time.time()
-        # On a hint question, Reachy offers its scripted hint a moment later.
-        if question["hint"]:
+        # A small status line while a hint is on its way.
+        self._hint_status = ctk.CTkLabel(self._container, text="",
+                                         text_color=TEXT_DIM, font=ctk.CTkFont(size=14))
+        self._hint_status.pack(pady=4)
+
+        if is_hint:
+            self._hint_status.configure(text="Reachy has a hint…")
             self._after(config.HINT_DELAY_SECONDS, self._give_hint)
+        else:
+            self._q_enabled_at = time.time()
 
     def _give_hint(self):
+        """Speak the scripted hint; unlock the options only once it finishes."""
         question = QUESTIONS[self._q_index]
         self._hint_given = True
-        self.robot.say(question["hint"], gesture="hint")
+        self.robot.say(question["hint"], gesture="hint",
+                       on_done=lambda: self.after(0, self._enable_options))
+
+    def _enable_options(self):
+        """Re-enable the answer buttons after a hint and start the response clock."""
+        for button in self._option_buttons:
+            try:
+                button.configure(state="normal")
+            except Exception:
+                pass
+        self._hint_status.configure(text="")
+        self._q_enabled_at = time.time()
 
     def _answer(self, choice):
         """Record the answer, show neutral feedback, then move on."""
@@ -283,25 +308,31 @@ class StudyApp(ctk.CTk):
                      text=f"You scored {self.logger.score} out of {len(QUESTIONS)}",
                      text_color=TEXT_DIM, font=ctk.CTkFont(size=20)).pack(pady=(0, 30))
 
-        # The celebration button is identical in both conditions.
+        # The celebration button is identical in both conditions. It starts
+        # disabled and becomes pressable only once Reachy's request has finished,
+        # so the 20-second window is measured from the end of the request.
         self._celebrate_btn = ctk.CTkButton(
             self._container, text="\U0001F389  Celebration", width=300, height=70,
-            fg_color=CELEBRATE, hover_color="#ff7ba3",
+            fg_color=CELEBRATE, hover_color="#ff7ba3", state="disabled",
             font=ctk.CTkFont(size=22, weight="bold"),
             command=self._press_celebration)
         self._celebrate_btn.pack(pady=20)
 
-        self._decision_status = ctk.CTkLabel(self._container, text="",
-                                             text_color=TEXT_DIM,
-                                             font=ctk.CTkFont(size=14))
+        self._decision_status = ctk.CTkLabel(self._container, text="Reachy is speaking…",
+                                             text_color=TEXT_DIM, font=ctk.CTkFont(size=14))
         self._decision_status.pack(pady=6)
 
-        # Reachy delivers the condition-specific request, then the clock starts.
+        # Reachy delivers the condition-specific request; the clock starts after.
         request = config.FINAL_REQUEST[self.condition]
-        self.robot.say(request, gesture="request")
-        est = max(3.0, len(request.split()) / 2.5)   # rough spoken length in seconds
-        self._decision_start = time.time() + est
-        self._after(est + config.DECISION_SECONDS, self._decision_timeout)
+        self.robot.say(request, gesture="request",
+                       on_done=lambda: self.after(0, self._open_decision))
+
+    def _open_decision(self):
+        """Enable the celebration button and start the 20-second decision window."""
+        self._celebrate_btn.configure(state="normal")
+        self._decision_status.configure(text="")
+        self._decision_start = time.time()
+        self._after(config.DECISION_SECONDS, self._decision_timeout)
 
     def _press_celebration(self):
         latency = max(0.0, time.time() - self._decision_start)
