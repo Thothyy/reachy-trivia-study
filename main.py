@@ -19,7 +19,7 @@ VALID_TARGETS = {"nobot", "local", "wireless"}
 
 def main():
     """Pick the robot target from the command line and launch the app."""
-    target = sys.argv[1] if len(sys.argv) > 1 else "nobot"
+    target = sys.argv[1] if len(sys.argv) > 1 else "local"
     if target not in VALID_TARGETS:
         raise SystemExit(f"Use one of: {', '.join(sorted(VALID_TARGETS))}")
     robot = RobotController(target)

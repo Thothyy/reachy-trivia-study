@@ -238,16 +238,19 @@ class StudyApp(ctk.CTk):
 
         self.robot.gesture("thinking")                  # a small reaction as the options appear
         if is_hint:
-            self._hint_status.configure(text="Reachy has a hint…")
+            self._hint_status.configure(
+                text="\U0001F4A1  Reachy has a hint for you…",
+                text_color=ACCENT, font=ctk.CTkFont(size=16, weight="bold"))
             self._after(config.HINT_DELAY_SECONDS, self._give_hint)
         else:
             self._q_enabled_at = time.time()
 
     def _give_hint(self):
-        """Speak the scripted hint; unlock the options only once it finishes."""
+        """Announce and speak the scripted hint; unlock the options once it ends."""
         question = QUESTIONS[self._q_index]
         self._hint_given = True
-        self.robot.say(question["hint"], gesture="hint",
+        spoken = "Here is a hint. " + question["hint"]       # say it out loud, every hint
+        self.robot.say(spoken, gesture="hint",
                        on_done=lambda: self.after(0, self._enable_options))
 
     def _enable_options(self):
@@ -309,52 +312,38 @@ class StudyApp(ctk.CTk):
                                              text_color=TEXT_DIM, font=ctk.CTkFont(size=14))
         self._decision_status.pack(pady=6)
 
+        # Revealed below the button once Reachy has finished its request.
+        self._leave_label = ctk.CTkLabel(self._container, text="", justify="center",
+                                         text_color=TEXT_DIM, font=ctk.CTkFont(size=16))
+        self._leave_label.pack(pady=(10, 0))
+
         # Reachy delivers the condition-specific request; the clock starts after.
         request = config.FINAL_REQUEST[self.condition]
         self.robot.say(request, gesture="request",
                        on_done=lambda: self.after(0, self._open_decision))
 
     def _open_decision(self):
-        """Enable the celebration button and start the 20-second decision window."""
+        """Enable the button, show the goodbye line, start the 20-second window."""
         self._celebrate_btn.configure(state="normal")
         self._decision_status.configure(text="")
+        self._leave_label.configure(
+            text="Thank you — that's the end of the game.\nYou're free to leave now.")
         self._decision_start = time.time()
         self._after(config.DECISION_SECONDS, self._decision_timeout)
 
     def _press_celebration(self):
+        """Record the press and save; the goodbye line is already on screen."""
         latency = max(0.0, time.time() - self._decision_start)
         self.logger.record_decision(True, latency)
+        self.logger.save()
         self._celebrate_btn.configure(state="disabled", text="\U0001F389  Hooray!")
-        self._decision_status.configure(text="Thanks! Continuing…")
         self.robot.gesture("nod")
+        self.robot.stop_idle()
         self._cancel_timers()
-        self._after(1.6, self._finish)
 
     def _decision_timeout(self):
-        if self.logger.pressed is None:              # they chose not to press
+        """The 20 seconds elapsed with no press: record it and save."""
+        if self.logger.pressed is None:
             self.logger.record_decision(False, None)
-        self._finish()
-
-    # ------------------------------------------------------------------ #
-    # 5. The end
-    # ------------------------------------------------------------------ #
-    def _finish(self):
-        """Save this participant's data and show the goodbye screen."""
-        self.logger.save()
-        self._show_goodbye()
-
-    def _show_goodbye(self):
-        self._clear()
+            self.logger.save()
         self.robot.stop_idle()
-        card = self._card()
-        ctk.CTkLabel(card, text="Thank you!",
-                     font=ctk.CTkFont(size=34, weight="bold")).pack(padx=70, pady=(46, 8))
-        ctk.CTkLabel(card, text="That's the end of the game — you're free to leave now.",
-                     justify="center", text_color=TEXT_DIM,
-                     font=ctk.CTkFont(size=16)).pack(padx=70, pady=(0, 12))
-        ctk.CTkLabel(card,
-                     text=f"Please complete the short questionnaire:\n{config.QUESTIONNAIRE_URL}",
-                     justify="center", text_color=TEXT_DIM,
-                     font=ctk.CTkFont(size=14)).pack(padx=70, pady=(0, 24))
-        ctk.CTkButton(card, text="Close", width=220, height=44,
-                      command=self._on_close).pack(pady=(0, 40))
