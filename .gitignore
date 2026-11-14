@@ -1,0 +1,14 @@
+# Virtual environment
+.venv/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Collected study data (keep participant data out of git)
+data/
+
+# Editor / OS files
+.vscode/
+Thumbs.db
+desktop.ini
