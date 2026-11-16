@@ -18,6 +18,7 @@ import customtkinter as ctk
 import config
 from logger import ParticipantLogger, balanced_condition, participant_has_data
 from questions import QUESTIONS
+from script_lines import spoken_lines, HINT_PREFIX
 
 try:                                 # Pillow is only needed for the image questions
     from PIL import Image
@@ -47,6 +48,7 @@ class StudyApp(ctk.CTk):
         """
         super().__init__()
         self.robot = robot
+        self.robot.prewarm(spoken_lines())   # render all speech up front -> instant playback
         self.title("Reachy Mini Trivia")
         self.geometry("1040x720")
         self.minsize(860, 620)
@@ -262,20 +264,21 @@ class StudyApp(ctk.CTk):
                                          text_color=TEXT_DIM, font=ctk.CTkFont(size=14))
         self._hint_status.pack(pady=4)
 
-        self.robot.gesture("thinking")                  # a small reaction as the options appear
         if is_hint:
+            self.robot.stop_idle()                      # free the worker so the hint is instant
             self._hint_status.configure(
                 text="\U0001F4A1  Reachy has a hint for you…",
                 text_color=ACCENT, font=ctk.CTkFont(size=16, weight="bold"))
             self._after(config.HINT_DELAY_SECONDS, self._give_hint)
         else:
+            self.robot.gesture("thinking")              # a small reaction as the options appear
             self._q_enabled_at = time.time()
 
     def _give_hint(self):
         """Announce and speak the scripted hint; unlock the options once it ends."""
         question = QUESTIONS[self._q_index]
         self._hint_given = True
-        spoken = "Here is a hint. " + question["hint"]       # say it out loud, every hint
+        spoken = HINT_PREFIX + question["hint"]              # say it out loud, every hint
         self.robot.say(spoken, gesture="hint",
                        on_done=lambda: self.after(0, self._enable_options))
 
@@ -317,6 +320,7 @@ class StudyApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _show_celebration(self):
         self._clear()
+        self.robot.stop_idle()           # free the worker so the request is instant
 
         ctk.CTkLabel(self._container, text="Game over!",
                      font=ctk.CTkFont(size=34, weight="bold")).pack(pady=(60, 6))

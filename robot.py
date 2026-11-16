@@ -24,6 +24,7 @@ import wave
 import numpy as np
 
 import config
+from script_lines import clip_name
 
 
 # Celebration dances: each is a list of pose steps played in order when the
@@ -86,6 +87,7 @@ class RobotController:
         self._mini = None
         self._connect_done = False            # True once the connection attempt has run
         self._idle = threading.Event()        # set while small idle fidgets are allowed
+        self._clips = {}                      # spoken line -> cached/pre-rendered audio path
         threading.Thread(target=self._worker, daemon=True).start()
 
     def status_text(self):
@@ -114,6 +116,10 @@ class RobotController:
     def gesture(self, name):
         """Queue a named gesture on its own (e.g. 'hint', 'thinking', 'nod')."""
         self._jobs.put(("gesture", name, None, None))
+
+    def prewarm(self, texts):
+        """Pre-render all the given lines now, so they play instantly later."""
+        self._jobs.put(("prewarm", list(texts), None, None))
 
     def start_idle(self):
         """Allow small idle movements (used between questions)."""
@@ -159,6 +165,13 @@ class RobotController:
                 continue
             if kind == "stop":
                 break
+            if kind == "prewarm":
+                for line in text:
+                    try:
+                        self._resolve(line)
+                    except Exception:
+                        pass
+                continue
             if kind == "say":
                 self._do_say(text, gesture, on_done)
             elif kind == "gesture":
@@ -166,9 +179,28 @@ class RobotController:
         self._close()
 
     # -- speech ------------------------------------------------------------
-    def _do_say(self, text, gesture, on_done):
-        """Render the line, play it (robot speaker or laptop), gesture alongside."""
+    def _resolve(self, text):
+        """Return a ready-to-play audio file for `text`: cached, pre-rendered or new.
+
+        1. a clip already made this session (in-memory cache),
+        2. a pre-rendered clip in assets/voice/ (e.g. made with ElevenLabs),
+        3. a freshly synthesized clip (edge-tts, or the Windows voice offline),
+           which is then cached so it is only ever made once.
+        This is what keeps hints and the final request instant during the study.
+        """
+        if text in self._clips and os.path.exists(self._clips[text]):
+            return self._clips[text]
+        prerendered = config.ASSETS_DIR / "voice" / (clip_name(text) + ".mp3")
+        if prerendered.exists():
+            self._clips[text] = str(prerendered)
+            return str(prerendered)
         path = self._synth(text)
+        self._clips[text] = path
+        return path
+
+    def _do_say(self, text, gesture, on_done):
+        """Play the line (robot speaker or laptop), with its gesture alongside."""
+        path = self._resolve(text)
         duration = self._estimate_seconds(text, path)
         start = time.time()
 
@@ -190,7 +222,6 @@ class RobotController:
         else:
             self._play_pc(path)                      # blocking laptop playback
 
-        self._cleanup(path)
         if on_done:
             on_done()
 
@@ -259,13 +290,6 @@ class RobotController:
         except Exception as exc:
             print(f"[robot] laptop audio failed: {exc}")
 
-    @staticmethod
-    def _cleanup(path):
-        try:
-            os.remove(path)
-        except Exception:
-            pass
-
     # -- movement ----------------------------------------------------------
     def _run_dance(self, name):
         """Play a celebration dance sequence, then settle back to neutral."""
@@ -330,12 +354,19 @@ class RobotController:
             antennas = np.deg2rad([np.random.uniform(-12, 12),
                                    np.random.uniform(-12, 12)])
             self._mini.goto_target(head=create_head_pose(yaw=yaw, pitch=pitch, degrees=True),
-                                   antennas=antennas, duration=1.1)
+                                   antennas=antennas, duration=0.8)
         except Exception:
             pass
 
     def _close(self):
-        """Release the SDK connection on shutdown."""
+        """Release the SDK connection and delete this session's temp clips."""
+        tmp = tempfile.gettempdir()
+        for path in self._clips.values():
+            try:
+                if path.startswith(tmp):
+                    os.remove(path)
+            except Exception:
+                pass
         if self._mini is not None:
             try:
                 self._mini.__exit__(None, None, None)

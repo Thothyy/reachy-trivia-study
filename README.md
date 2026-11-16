@@ -58,6 +58,12 @@ Likert questionnaires are done **in person / on our own devices**.
 
 Tunables (timings, the two request wordings, the celebration dance, and the
 voice `TTS_VOICE`) are at the top of `config.py`; the questions are in
-`questions.py`. Reachy speaks with a natural neural voice via **edge-tts** (needs
-internet; falls back to the built-in Windows voice offline) — browse voices with
-`python -m edge_tts --list-voices`.
+`questions.py`.
+
+**Voice.** Every line Reachy says is fixed, so it's **pre-rendered once and
+played instantly** — no live text-to-speech lag during the study. By default the
+clips are made at start-up with **edge-tts** (natural, needs internet, falls back
+to the built-in Windows voice offline; browse voices with
+`python -m edge_tts --list-voices`). For the best quality, run
+`python prerender_voice.py` once with an ElevenLabs key to drop high-quality MP3s
+into `assets/voice/` — the app uses those automatically if present.

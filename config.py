@@ -34,7 +34,7 @@ FINAL_REQUEST = {
 # Timing (seconds)
 # --------------------------------------------------------------------------- #
 READ_SECONDS = 4            # question shown alone before the options appear
-HINT_DELAY_SECONDS = 1.5    # after options appear, wait this long before a hint
+HINT_DELAY_SECONDS = 1      # after options appear, wait this long before a hint
 DECISION_SECONDS = 20       # window to (not) press the celebration button
 FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 
