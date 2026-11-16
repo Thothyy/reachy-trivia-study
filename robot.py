@@ -23,6 +23,8 @@ import wave
 
 import numpy as np
 
+import config
+
 
 # Celebration dances: each is a list of pose steps played in order when the
 # celebration button is pressed. Angles are in degrees; "ant" is the two antenna
@@ -166,14 +168,14 @@ class RobotController:
     # -- speech ------------------------------------------------------------
     def _do_say(self, text, gesture, on_done):
         """Render the line, play it (robot speaker or laptop), gesture alongside."""
-        wav = self._synth_wav(text)
-        duration = self._wav_seconds(wav)
+        path = self._synth(text)
+        duration = self._estimate_seconds(text, path)
         start = time.time()
 
         used_robot = False
         if self._mini is not None:
             try:
-                self._mini.media.play_sound(wav)     # non-blocking on the robot
+                self._mini.media.play_sound(path)    # non-blocking on the robot
                 used_robot = True
             except Exception as exc:
                 print(f"[robot] robot audio failed ({exc}); using laptop speaker")
@@ -186,14 +188,43 @@ class RobotController:
             if remaining > 0:
                 time.sleep(remaining)
         else:
-            self._play_pc(wav)                       # blocking laptop playback
+            self._play_pc(path)                      # blocking laptop playback
 
-        self._cleanup(wav)
+        self._cleanup(path)
         if on_done:
             on_done()
 
-    def _synth_wav(self, text):
-        """Render text to a temporary WAV with the Windows voice; return its path."""
+    def _synth(self, text):
+        """Make a speech file: a natural edge-tts MP3, or a SAPI WAV if that fails.
+
+        edge-tts uses Microsoft's neural voices (TTS_VOICE in config) and needs
+        internet. If it can't be reached I fall back to the offline built-in
+        Windows voice, so speech is never lost -- just less natural.
+        """
+        try:
+            return self._synth_edge(text)
+        except Exception as exc:
+            print(f"[robot] edge-tts unavailable ({exc}); using the built-in voice")
+            return self._synth_sapi(text)
+
+    @staticmethod
+    def _synth_edge(text):
+        """Render text to an MP3 with an edge-tts neural voice; return its path."""
+        import asyncio
+        import edge_tts
+        path = os.path.join(tempfile.gettempdir(), f"reachy_tts_{time.time_ns()}.mp3")
+
+        async def run():
+            await edge_tts.Communicate(text, config.TTS_VOICE).save(path)
+
+        asyncio.run(run())
+        if not os.path.exists(path) or os.path.getsize(path) == 0:
+            raise RuntimeError("edge-tts produced no audio")
+        return path
+
+    @staticmethod
+    def _synth_sapi(text):
+        """Render text to a WAV with the built-in Windows voice; return its path."""
         path = os.path.join(tempfile.gettempdir(), f"reachy_tts_{time.time_ns()}.wav")
         safe = text.replace("'", " ")
         command = ("Add-Type -AssemblyName System.Speech; "
@@ -204,20 +235,27 @@ class RobotController:
         return path
 
     @staticmethod
-    def _wav_seconds(path):
-        """Return the exact length of a WAV file in seconds (3.0 if unreadable)."""
-        try:
-            with wave.open(path, "rb") as handle:
-                return handle.getnframes() / float(handle.getframerate())
-        except Exception:
-            return 3.0
+    def _estimate_seconds(text, path):
+        """Length of the clip: exact for a WAV, estimated from the text for an MP3."""
+        if path.lower().endswith(".wav"):
+            try:
+                with wave.open(path, "rb") as handle:
+                    return handle.getnframes() / float(handle.getframerate())
+            except Exception:
+                pass
+        return max(1.5, len(text.split()) / 2.7 + 0.6)
 
     @staticmethod
     def _play_pc(path):
-        """Play a WAV on the laptop speaker (blocks until finished)."""
+        """Play an MP3 or WAV on the laptop speaker via Windows MCI (blocks)."""
         try:
-            import winsound
-            winsound.PlaySound(path, winsound.SND_FILENAME)
+            import ctypes
+            mci = ctypes.windll.winmm.mciSendStringW
+            mci("close reachytts", None, 0, None)        # clear any previous clip
+            if mci(f'open "{path}" alias reachytts', None, 0, None) != 0:
+                raise RuntimeError("could not open the audio file")
+            mci("play reachytts wait", None, 0, None)
+            mci("close reachytts", None, 0, None)
         except Exception as exc:
             print(f"[robot] laptop audio failed: {exc}")
 

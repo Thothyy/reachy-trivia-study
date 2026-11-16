@@ -56,5 +56,8 @@ Likert questionnaires are done **in person / on our own devices**.
 
 ## Editing
 
-Tunables (timings, the two request wordings) are at the top of `config.py`; the
-questions are in `questions.py`.
+Tunables (timings, the two request wordings, the celebration dance, and the
+voice `TTS_VOICE`) are at the top of `config.py`; the questions are in
+`questions.py`. Reachy speaks with a natural neural voice via **edge-tts** (needs
+internet; falls back to the built-in Windows voice offline) — browse voices with
+`python -m edge_tts --list-voices`.

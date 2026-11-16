@@ -42,6 +42,13 @@ FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 # Options: "cheer", "spin", "bop", "wiggle".
 CELEBRATION_DANCE = "cheer"
 
+# Natural neural voice for Reachy's speech (via edge-tts; needs internet). It
+# falls back to the built-in Windows voice if edge-tts can't be reached.
+# Browse voices with:  python -m edge_tts --list-voices
+# Friendly options: en-GB-SoniaNeural, en-GB-RyanNeural, en-US-AriaNeural,
+#                   en-US-GuyNeural, en-AU-NatashaNeural.
+TTS_VOICE = "en-GB-SoniaNeural"
+
 # --------------------------------------------------------------------------- #
 # Fixed wording (kept identical in both conditions)
 # --------------------------------------------------------------------------- #
