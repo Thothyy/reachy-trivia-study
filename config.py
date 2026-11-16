@@ -67,6 +67,7 @@ TTS_VOICE = "en-GB-SoniaNeural"
 # dial the gaze in on the day without touching the pointing logic.
 GAZE_SCREEN_YAW = 30.0         # look toward the laptop/task while the question is read
 GAZE_PARTICIPANT_YAW = -30.0   # base turn toward the participant when the options appear
+GAZE_FLIP = False              # set True if the two directions are reversed (looks at the screen when it should look at you)
 
 GAZE_TRACKING = False          # True = actively follow the face (experimental); False = turn and hold steady (recommended)
 GAZE_YAW_GAIN = 25.0           # how hard to turn toward the face; flip the sign if it turns away

@@ -39,9 +39,17 @@ The setup screen shows the robot's connection status. Quit with the window's ✕
 
 ## Flow
 
-Setup (ID + condition) → 6 questions (shown alone 4s, then 4 options; hint
-questions lock until Reachy finishes its hint) → score + celebration button →
-Reachy's request → 20s decision window → data saved.
+Setup (ID + condition) → 6 questions (each shown alone for 4s, then 4 options;
+the three hint questions lock the options until Reachy finishes its spoken hint)
+→ score + celebration button → Reachy's final request → 20s decision window →
+data saved. A **"New participant"** button then resets the robot and returns to
+setup for the next person.
+
+**Reachy's gaze:** it looks at the **screen** while a question is read; on hint
+questions it turns to the **participant** for the hint and holds there until they
+answer, then looks back at the screen. On the game-over screen it faces the
+participant for the request and, if the button is pressed, plays a built-in
+**dance** (with its own music).
 
 ## Data
 
@@ -56,10 +64,16 @@ Likert questionnaires are done **in person / on our own devices**.
 
 ## Editing
 
-Tunables (timings, the two request wordings, the celebration emotion
-`CELEBRATION_EMOTION` — a built-in Reachy dance like `dance1`/`dance2`/`dance3`
-played with its own music — and the voice `TTS_VOICE`) are at the top of
-`config.py`; the questions are in `questions.py`.
+Tunables are at the top of `config.py`; the questions are in `questions.py`.
+
+- **Timings** — `READ_SECONDS`, `HINT_DELAY_SECONDS`, `DECISION_SECONDS`.
+- **Requests** — the two `FINAL_REQUEST` wordings (the only per-condition difference).
+- **Gaze** — `GAZE_SCREEN_YAW` / `GAZE_PARTICIPANT_YAW` (tune to your table);
+  set `GAZE_FLIP = True` if the two directions come out reversed; `GAZE_TRACKING`
+  turns on experimental live face-following.
+- **Dance** — `CELEBRATION_EMOTION` (`dance1` / `dance2` / `dance3`). Preview them
+  with `python test_dances.py` and set your favourite.
+- **Voice** — `TTS_VOICE` (see below).
 
 **Voice.** Every line Reachy says is fixed, so it's **pre-rendered once and
 played instantly** — no live text-to-speech lag during the study. By default the

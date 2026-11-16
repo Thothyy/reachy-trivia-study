@@ -186,6 +186,8 @@ class StudyApp(ctk.CTk):
             self.condition = choice
         self.logger = ParticipantLogger(config.DATA_DIR, participant_id, self.condition)
         self._q_index = 0
+        self.robot.stop_tracking()
+        self.robot.reset()               # clean starting pose for the new game
         self._show_question()
 
     # ------------------------------------------------------------------ #
@@ -295,17 +297,21 @@ class StudyApp(ctk.CTk):
         self._hint_status.configure(text="")
         self._q_enabled_at = time.time()                # head stays on the participant from here
 
+    def _gaze_yaw(self, yaw):
+        """Apply the gaze flip if the screen/participant directions are reversed."""
+        return -yaw if config.GAZE_FLIP else yaw
+
     def _look_at_screen(self):
         """Point Reachy's head at the laptop/task."""
         self.robot.stop_tracking()
-        self.robot.look_at(config.GAZE_SCREEN_YAW)
+        self.robot.look_at(self._gaze_yaw(config.GAZE_SCREEN_YAW))
 
     def _look_at_me(self):
         """Turn to the participant -- follow their face if tracking is on, else hold."""
         if config.GAZE_TRACKING:
             self.robot.start_tracking()
         else:
-            self.robot.look_at(config.GAZE_PARTICIPANT_YAW)
+            self.robot.look_at(self._gaze_yaw(config.GAZE_PARTICIPANT_YAW))
 
     def _answer(self, choice):
         """Record the answer, show neutral feedback, then move on."""
@@ -337,7 +343,7 @@ class StudyApp(ctk.CTk):
         self._clear()
         self.robot.stop_idle()
         self.robot.stop_tracking()
-        self.robot.look_at(config.GAZE_PARTICIPANT_YAW)   # look at the participant and hold (locked)
+        self.robot.look_at(self._gaze_yaw(config.GAZE_PARTICIPANT_YAW))   # look at the participant and hold
 
         ctk.CTkLabel(self._container, text="Game over!",
                      font=ctk.CTkFont(size=34, weight="bold")).pack(pady=(60, 6))
@@ -390,6 +396,7 @@ class StudyApp(ctk.CTk):
         else:
             self.robot.say("Woohoo!", gesture=config.CELEBRATION_DANCE)
         self._cancel_timers()
+        self._offer_restart()
 
     def _decision_timeout(self):
         """The 20 seconds elapsed with no press: record it and save."""
@@ -397,3 +404,17 @@ class StudyApp(ctk.CTk):
             self.logger.record_decision(False, None)
             self.logger.save()
         self.robot.stop_idle()
+        self._offer_restart()
+
+    def _offer_restart(self):
+        """Show a button for the experimenter to start the next participant."""
+        ctk.CTkButton(self._container, text="New participant", width=200, height=40,
+                      fg_color=CARD, hover_color=ACCENT, font=ctk.CTkFont(size=14),
+                      command=self._restart).pack(pady=(16, 0))
+
+    def _restart(self):
+        """Reset the robot and return to the setup screen for a new game."""
+        self.robot.stop_tracking()
+        self.robot.reset()
+        self._dup_pid = None
+        self._show_setup()

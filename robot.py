@@ -134,6 +134,10 @@ class RobotController:
         """Queue a built-in Reachy emotion/dance from the Expressions library."""
         self._jobs.put(("emotion", name, None, None))
 
+    def reset(self):
+        """Return the head, antennas and body to neutral (e.g. for a new game)."""
+        self._jobs.put(("reset", None, None, None))
+
     def start_idle(self):
         """Allow small idle movements (used between questions)."""
         self._idle.set()
@@ -206,10 +210,13 @@ class RobotController:
                     except Exception:
                         pass
                 continue
-            if kind == "look":
+            if kind in ("look", "reset"):
                 self._head_busy = True
                 try:
-                    self._do_look(text)
+                    if kind == "look":
+                        self._do_look(text)
+                    else:
+                        self._do_reset()
                 finally:
                     self._head_busy = False
                 continue
@@ -415,6 +422,17 @@ class RobotController:
         yaw, pitch = target
         self._safe_goto(yaw, pitch, 0.6)
 
+    def _do_reset(self):
+        """Return head, antennas and body to neutral."""
+        if self._mini is None:
+            return
+        try:
+            from reachy_mini.utils import create_head_pose
+            self._mini.goto_target(head=create_head_pose(), antennas=np.zeros(2),
+                                   body_yaw=0.0, duration=0.6)
+        except Exception:
+            pass
+
     def _safe_goto(self, yaw, pitch, duration):
         """goto_target to a head yaw/pitch (degrees), swallowing any error."""
         if self._mini is None:
@@ -442,7 +460,8 @@ class RobotController:
             return
         cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-        yaw, pitch = config.GAZE_PARTICIPANT_YAW, 0.0
+        base = -config.GAZE_PARTICIPANT_YAW if config.GAZE_FLIP else config.GAZE_PARTICIPANT_YAW
+        yaw, pitch = base, 0.0
         self._safe_goto(yaw, pitch, 0.5)                 # first, turn to the participant
 
         while self._tracking.is_set():
