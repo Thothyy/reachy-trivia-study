@@ -33,17 +33,20 @@ FINAL_REQUEST = {
 # --------------------------------------------------------------------------- #
 # Timing (seconds)
 # --------------------------------------------------------------------------- #
-READ_SECONDS = 4            # question shown alone before the options appear
+READ_SECONDS = 5            # question shown alone before the options appear
 HINT_DELAY_SECONDS = 0.5    # after options appear, wait this long before a hint
 DECISION_SECONDS = 20       # window to (not) press the celebration button
 FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 
-# Built-in Reachy emotion played when the celebration button is pressed, from
-# Reachy Mini Control's Expressions library (plays with its own music). Try
-# "dance1", "dance2" or "dance3". Set CELEBRATION_EMOTION = "" to fall back to
-# the simple hand-coded dance below instead.
-CELEBRATION_EMOTION = "dance3"
-CELEBRATION_EMOTION_DATASET = "pollen-robotics/reachy-mini-emotions-library"
+# Recorded dance played when the celebration button is pressed (plays with its
+# own music). "las-ketchup" is choreographed to the Las Ketchup song and lives in
+# the community "Anne-Charlotte/music" library you can see in Reachy Mini Control.
+# The first run downloads that dataset from HuggingFace (needs internet once),
+# then it is cached. Preview moves with  python test_dances.py --list  /
+# python test_dances.py <name>.  Set CELEBRATION_EMOTION = "" to fall back to the
+# simple hand-coded dance below instead.
+CELEBRATION_EMOTION = "las-ketchup"
+CELEBRATION_EMOTION_DATASET = "Anne-Charlotte/music"
 
 # Hand-coded fallback dance (used only if CELEBRATION_EMOTION is "" or fails).
 # Options: "cheer", "spin", "bop", "wiggle".
@@ -66,6 +69,9 @@ TTS_VOICE = "en-GB-SoniaNeural"
 # wrong way. These are deliberately separate from FLIP_HEAD_DIRECTION so you can
 # dial the gaze in on the day without touching the pointing logic.
 GAZE_SCREEN_YAW = 30.0         # look toward the laptop/task while the question is read
+GAZE_SCREEN_PITCH = 15.0       # tilt the head DOWN this many degrees when looking at the
+                               # laptop (the screen sits below eye level); raise it if Reachy
+                               # still looks too high, lower/0 for level. Participant gaze stays level.
 GAZE_PARTICIPANT_YAW = -30.0   # base turn toward the participant when the options appear
 GAZE_FLIP = False              # set True if the two directions are reversed (looks at the screen when it should look at you)
 
@@ -79,6 +85,10 @@ GAZE_MAX_PITCH = 18.0
 # Fixed wording (kept identical in both conditions)
 # --------------------------------------------------------------------------- #
 ANSWER_FEEDBACK = "Answer recorded. Let's continue."
+
+# Spoken once when the experimenter presses "Initialize robot" on the setup screen:
+# Reachy turns to the participant, introduces itself, then faces forward.
+INTRO_GREETING = "Hi, my name is Reachy, and I will help you with the trivia questions."
 
 # Note: the spoken briefing (incl. "do not press the celebration button"), the
 # manipulation check and the Likert questionnaires are handled OUTSIDE the app --

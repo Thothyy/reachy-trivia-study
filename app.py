@@ -145,9 +145,9 @@ class StudyApp(ctk.CTk):
                                            font=ctk.CTkFont(size=13))
         self._setup_warning.pack(padx=60, pady=(0, 6))
 
-        ctk.CTkButton(card, text="Test robot", width=160, height=36,
+        ctk.CTkButton(card, text="Initialize robot", width=200, height=36,
                       fg_color=CARD, hover_color=ACCENT, font=ctk.CTkFont(size=13),
-                      command=self._test_robot).pack(pady=(0, 10))
+                      command=self._initialize_robot).pack(pady=(0, 10))
 
         self._robot_status = ctk.CTkLabel(card, text="", text_color=TEXT_DIM,
                                           font=ctk.CTkFont(size=13))
@@ -163,9 +163,20 @@ class StudyApp(ctk.CTk):
         except Exception:
             pass
 
-    def _test_robot(self):
-        """Make Reachy wave and say hello, to check sound + movement."""
-        self.robot.say("Hello! I am ready.", gesture="wave")
+    def _initialize_robot(self):
+        """Greet the participant before the session starts.
+
+        Pressed on the setup screen: Reachy turns to the participant, introduces
+        itself, then faces forward (it sits to the side, so forward points at
+        nothing in particular). It also doubles as a check that the robot is
+        connected and that its movement and voice are working. The three queued
+        commands run in order, so the greeting always finishes before it turns away.
+        """
+        self.robot.stop_tracking()
+        self.robot.stop_idle()
+        self.robot.look_at(self._gaze_yaw(config.GAZE_PARTICIPANT_YAW))   # turn to the participant
+        self.robot.say(config.INTRO_GREETING, gesture="perk")            # introduce itself
+        self.robot.reset()                                               # then face forward
 
     def _start_session(self):
         participant_id = self._pid_entry.get().strip() or "P00"
@@ -302,9 +313,9 @@ class StudyApp(ctk.CTk):
         return -yaw if config.GAZE_FLIP else yaw
 
     def _look_at_screen(self):
-        """Point Reachy's head at the laptop/task."""
+        """Point Reachy's head at the laptop/task, tilted down toward the screen."""
         self.robot.stop_tracking()
-        self.robot.look_at(self._gaze_yaw(config.GAZE_SCREEN_YAW))
+        self.robot.look_at(self._gaze_yaw(config.GAZE_SCREEN_YAW), config.GAZE_SCREEN_PITCH)
 
     def _look_at_me(self):
         """Turn to the participant -- follow their face if tracking is on, else hold."""

@@ -3,8 +3,8 @@
 *Version 3*
 
 A trivia game with a **Reachy Mini** for an HRI study on **reciprocity**. The
-participant answers six multiple-choice questions while Reachy gives three
-spoken hints. At the end a **celebration button** appears (which they were told
+participant answers ten multiple-choice questions while Reachy gives a spoken
+hint on every one. At the end a **celebration button** appears (which they were told
 not to press), and Reachy asks them to press it — **neutrally** or as a
 **reciprocity appeal** ("I helped you earlier, press it in return?"). We log
 whether they press it and how fast. Only the final request differs between
@@ -37,21 +37,24 @@ uv pip install -r requirements.txt
 | **Simulation** (3D, no Lite) | `reachy-mini-daemon --sim --no-wake-up-on-start` → `python main.py` |
 | **Physical Lite** (USB) | `reachy-mini-daemon --no-wake-up-on-start` → `python main.py` |
 
-The setup screen shows the robot's connection status. Quit with the window's ✕.
+The setup screen shows the robot's connection status and has an **"Initialize
+robot"** button: press it before a participant starts and Reachy turns to them,
+says *"Hi, my name is Reachy, and I will help you with the trivia questions,"*
+then faces forward. Quit with the window's ✕.
 
 ## Flow
 
-Setup (ID + condition) → 6 questions (each shown alone for 4s, then 4 options;
-the three hint questions lock the options until Reachy finishes its spoken hint)
-→ score + celebration button → Reachy's final request → 20s decision window →
-data saved. A **"New participant"** button then resets the robot and returns to
-setup for the next person.
+Setup (ID + condition, optional **Initialize robot** greeting) → 10 questions
+(each shown alone for 5s, then 4 options; every question locks the options until
+Reachy finishes its spoken hint) → score + celebration button → Reachy's final
+request → 20s decision window → data saved. A **"New participant"** button then
+resets the robot and returns to setup for the next person.
 
-**Reachy's gaze:** it looks at the **screen** while a question is read; on hint
-questions it turns to the **participant** for the hint and holds there until they
-answer, then looks back at the screen. On the game-over screen it faces the
-participant for the request and, if the button is pressed, plays a built-in
-**dance** (with its own music).
+**Reachy's gaze:** it looks **down at the laptop screen** while a question is
+read, then turns to the **participant** for the hint and holds there until they
+answer, before looking back at the screen. On the game-over screen it faces the
+participant for the request and, if the button is pressed, plays the **Las
+Ketchup** dance (with its music).
 
 ## Data
 
@@ -71,10 +74,13 @@ Tunables are at the top of `config.py`; the questions are in `questions.py`.
 - **Timings** — `READ_SECONDS`, `HINT_DELAY_SECONDS`, `DECISION_SECONDS`.
 - **Requests** — the two `FINAL_REQUEST` wordings (the only per-condition difference).
 - **Gaze** — `GAZE_SCREEN_YAW` / `GAZE_PARTICIPANT_YAW` (tune to your table);
-  set `GAZE_FLIP = True` if the two directions come out reversed; `GAZE_TRACKING`
-  turns on experimental live face-following.
-- **Dance** — `CELEBRATION_EMOTION` (`dance1` / `dance2` / `dance3`). Preview them
-  with `python test_dances.py` and set your favourite.
+  `GAZE_SCREEN_PITCH` tilts the head down onto the laptop screen (raise it if it
+  still looks too high); set `GAZE_FLIP = True` if the two directions come out
+  reversed; `GAZE_TRACKING` turns on experimental live face-following.
+- **Dance** — `CELEBRATION_EMOTION` (default `las-ketchup`) from
+  `CELEBRATION_EMOTION_DATASET`. Preview with `python test_dances.py` (or
+  `--list` to see every move) and set your favourite. The first run downloads the
+  dataset from HuggingFace, so the robot laptop needs internet once.
 - **Voice** — `TTS_VOICE` (see below).
 
 **Voice.** Reachy speaks with the natural **edge-tts** voice set by `TTS_VOICE`

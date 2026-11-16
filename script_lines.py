@@ -16,6 +16,6 @@ def spoken_lines():
     """Every line Reachy can say in a session, so they can all be pre-rendered."""
     lines = [HINT_PREFIX + q["hint"] for q in QUESTIONS if q["hint"]]
     lines.extend(config.FINAL_REQUEST.values())
-    lines.append("Woohoo!")
-    lines.append("Hello! I am ready.")
+    lines.append(config.INTRO_GREETING)      # the "Initialize robot" greeting
+    lines.append("Woohoo!")                  # fallback celebration cheer
     return lines
