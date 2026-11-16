@@ -24,7 +24,6 @@ import wave
 import numpy as np
 
 import config
-from script_lines import clip_name
 
 
 # Celebration dances: each is a list of pose steps played in order when the
@@ -234,20 +233,14 @@ class RobotController:
 
     # -- speech ------------------------------------------------------------
     def _resolve(self, text):
-        """Return a ready-to-play audio file for `text`: cached, pre-rendered or new.
+        """Return a ready-to-play audio file for `text`, making it once and caching.
 
-        1. a clip already made this session (in-memory cache),
-        2. a pre-rendered clip in assets/voice/ (e.g. made with ElevenLabs),
-        3. a freshly synthesized clip (edge-tts, or the Windows voice offline),
-           which is then cached so it is only ever made once.
-        This is what keeps hints and the final request instant during the study.
+        Each line is synthesized once (edge-tts, or the Windows voice offline) and
+        cached, so repeated lines -- and everything after prewarm() -- play
+        instantly, with no live text-to-speech lag during the study.
         """
         if text in self._clips and os.path.exists(self._clips[text]):
             return self._clips[text]
-        prerendered = config.ASSETS_DIR / "voice" / (clip_name(text) + ".mp3")
-        if prerendered.exists():
-            self._clips[text] = str(prerendered)
-            return str(prerendered)
         path = self._synth(text)
         self._clips[text] = path
         return path
@@ -385,25 +378,7 @@ class RobotController:
             if name in DANCES:                      # a celebration dance sequence
                 self._run_dance(name)
                 return
-            if name == "hint":                      # lean in, perk antennas (sharing a tip)
-                self._mini.goto_target(head=create_head_pose(pitch=12, degrees=True),
-                                       antennas=np.deg2rad([35, -35]), duration=0.5)
-                self._mini.goto_target(head=create_head_pose(),
-                                       antennas=np.zeros(2), duration=0.6)
-            elif name == "thinking":                # a small tilt, as if considering
-                self._mini.goto_target(head=create_head_pose(roll=8, yaw=10, degrees=True),
-                                       duration=0.6)
-                self._mini.goto_target(head=create_head_pose(), duration=0.6)
-            elif name == "request":                 # open, friendly nod for the final ask
-                self._mini.goto_target(head=create_head_pose(pitch=-8, degrees=True),
-                                       antennas=np.deg2rad([20, -20]), duration=0.5)
-                self._mini.goto_target(head=create_head_pose(),
-                                       antennas=np.zeros(2), duration=0.6)
-            elif name == "nod":                     # quick acknowledgement
-                self._mini.goto_target(head=create_head_pose(pitch=10, degrees=True),
-                                       duration=0.3)
-                self._mini.goto_target(head=create_head_pose(), duration=0.3)
-            elif name == "wave":                    # friendly hello wave (robot test)
+            if name == "wave":                      # friendly hello wave (robot test)
                 self._mini.goto_target(head=create_head_pose(yaw=10, degrees=True),
                                        antennas=np.deg2rad([45, 10]), duration=0.3)
                 self._mini.goto_target(antennas=np.deg2rad([10, 45]), duration=0.3)

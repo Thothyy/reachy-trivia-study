@@ -42,7 +42,7 @@ FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 # Reachy Mini Control's Expressions library (plays with its own music). Try
 # "dance1", "dance2" or "dance3". Set CELEBRATION_EMOTION = "" to fall back to
 # the simple hand-coded dance below instead.
-CELEBRATION_EMOTION = "dance1"
+CELEBRATION_EMOTION = "dance3"
 CELEBRATION_EMOTION_DATASET = "pollen-robotics/reachy-mini-emotions-library"
 
 # Hand-coded fallback dance (used only if CELEBRATION_EMOTION is "" or fails).

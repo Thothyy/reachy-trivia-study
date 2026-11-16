@@ -1,5 +1,7 @@
 # Reachy Mini Trivia — Reciprocity Study
 
+*Version 3*
+
 A trivia game with a **Reachy Mini** for an HRI study on **reciprocity**. The
 participant answers six multiple-choice questions while Reachy gives three
 spoken hints. At the end a **celebration button** appears (which they were told
@@ -75,10 +77,8 @@ Tunables are at the top of `config.py`; the questions are in `questions.py`.
   with `python test_dances.py` and set your favourite.
 - **Voice** — `TTS_VOICE` (see below).
 
-**Voice.** Every line Reachy says is fixed, so it's **pre-rendered once and
-played instantly** — no live text-to-speech lag during the study. By default the
-clips are made at start-up with **edge-tts** (natural, needs internet, falls back
-to the built-in Windows voice offline; browse voices with
-`python -m edge_tts --list-voices`). For the best quality, run
-`python prerender_voice.py` once with an ElevenLabs key to drop high-quality MP3s
-into `assets/voice/` — the app uses those automatically if present.
+**Voice.** Reachy speaks with the natural **edge-tts** voice set by `TTS_VOICE`
+(default `en-GB-SoniaNeural`; needs internet, falls back to the built-in Windows
+voice offline). Every line is fixed, so they're all rendered once at start-up and
+played instantly — no lag during the study. Browse voices with
+`python -m edge_tts --list-voices`.
