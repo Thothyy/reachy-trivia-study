@@ -186,7 +186,6 @@ class StudyApp(ctk.CTk):
             self.condition = choice
         self.logger = ParticipantLogger(config.DATA_DIR, participant_id, self.condition)
         self._q_index = 0
-        self.robot.start_idle()          # keep Reachy gently alive for the whole session
         self._show_question()
 
     # ------------------------------------------------------------------ #
@@ -194,9 +193,8 @@ class StudyApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _show_question(self):
         self._clear()
-        self.robot.stop_tracking()
         self.robot.stop_idle()
-        self.robot.look_at(config.GAZE_SCREEN_YAW)   # look toward the laptop while reading
+        self._look_at_screen()                       # look toward the laptop while reading
         question = QUESTIONS[self._q_index]
         self._hint_given = False
 
@@ -270,12 +268,13 @@ class StudyApp(ctk.CTk):
 
         if is_hint:
             self.robot.stop_idle()                      # free the worker so the hint is instant
+            self._look_at_me()                          # look at the participant for the hint
             self._hint_status.configure(
                 text="\U0001F4A1  Reachy has a hint for you…",
                 text_color=ACCENT, font=ctk.CTkFont(size=16, weight="bold"))
             self._after(config.HINT_DELAY_SECONDS, self._give_hint)
         else:
-            self._begin_gaze()                          # turn to the participant (and follow)
+            self._look_at_screen()                      # non-hint: keep looking at the screen
             self._q_enabled_at = time.time()
 
     def _give_hint(self):
@@ -283,7 +282,7 @@ class StudyApp(ctk.CTk):
         question = QUESTIONS[self._q_index]
         self._hint_given = True
         spoken = HINT_PREFIX + question["hint"]              # say it out loud, every hint
-        self.robot.say(spoken, gesture="hint",
+        self.robot.say(spoken, gesture="perk",           # perk = head stays locked on the participant
                        on_done=lambda: self.after(0, self._enable_options))
 
     def _enable_options(self):
@@ -294,11 +293,15 @@ class StudyApp(ctk.CTk):
             except Exception:
                 pass
         self._hint_status.configure(text="")
-        self._begin_gaze()                              # now turn to and follow the participant
-        self._q_enabled_at = time.time()
+        self._q_enabled_at = time.time()                # head stays on the participant from here
 
-    def _begin_gaze(self):
-        """Turn to the participant and follow their face (or just hold, if off)."""
+    def _look_at_screen(self):
+        """Point Reachy's head at the laptop/task."""
+        self.robot.stop_tracking()
+        self.robot.look_at(config.GAZE_SCREEN_YAW)
+
+    def _look_at_me(self):
+        """Turn to the participant -- follow their face if tracking is on, else hold."""
         if config.GAZE_TRACKING:
             self.robot.start_tracking()
         else:
@@ -306,7 +309,7 @@ class StudyApp(ctk.CTk):
 
     def _answer(self, choice):
         """Record the answer, show neutral feedback, then move on."""
-        self.robot.stop_tracking()
+        self._look_at_screen()                          # look back at the screen after answering
         question = QUESTIONS[self._q_index]
         seconds = time.time() - self._q_enabled_at
         correct = choice == question["answer"]
@@ -318,7 +321,6 @@ class StudyApp(ctk.CTk):
         card = self._card()
         ctk.CTkLabel(card, text=config.ANSWER_FEEDBACK,
                      font=ctk.CTkFont(size=22)).pack(padx=70, pady=50)
-        self.robot.start_idle()
         self._after(config.FEEDBACK_SECONDS, self._next_question)
 
     def _next_question(self):
@@ -333,8 +335,9 @@ class StudyApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _show_celebration(self):
         self._clear()
+        self.robot.stop_idle()
         self.robot.stop_tracking()
-        self.robot.stop_idle()           # free the worker so the request is instant
+        self.robot.look_at(config.GAZE_PARTICIPANT_YAW)   # look at the participant and hold (locked)
 
         ctk.CTkLabel(self._container, text="Game over!",
                      font=ctk.CTkFont(size=34, weight="bold")).pack(pady=(60, 6))
@@ -363,7 +366,7 @@ class StudyApp(ctk.CTk):
 
         # Reachy delivers the condition-specific request; the clock starts after.
         request = config.FINAL_REQUEST[self.condition]
-        self.robot.say(request, gesture="request",
+        self.robot.say(request, gesture="perk",          # perk = head stays locked on the participant
                        on_done=lambda: self.after(0, self._open_decision))
 
     def _open_decision(self):

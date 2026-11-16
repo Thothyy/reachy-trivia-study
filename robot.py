@@ -403,6 +403,9 @@ class RobotController:
                 self._mini.goto_target(antennas=np.deg2rad([45, 10]), duration=0.3)
                 self._mini.goto_target(head=create_head_pose(),
                                        antennas=np.zeros(2), duration=0.4)
+            elif name == "perk":                    # antennas only; the head stays where it is
+                self._mini.goto_target(antennas=np.deg2rad([35, -35]), duration=0.4)
+                self._mini.goto_target(antennas=np.zeros(2), duration=0.5)
         except Exception as exc:
             print(f"[robot] gesture error: {exc}")
 
@@ -462,11 +465,12 @@ class RobotController:
                 rows, cols = gray.shape[:2]
                 off_x = ((x + w / 2.0) - cols / 2.0) / (cols / 2.0)   # -1 .. 1
                 off_y = ((y + h / 2.0) - rows / 2.0) / (rows / 2.0)
-                yaw = _clamp(yaw - config.GAZE_YAW_GAIN * off_x, config.GAZE_MAX_YAW)
-                pitch = _clamp(pitch + config.GAZE_PITCH_GAIN * off_y, config.GAZE_MAX_PITCH)
-                if not self._head_busy:
-                    self._safe_goto(yaw, pitch, 0.25)
-            time.sleep(0.07)
+                if abs(off_x) > 0.12 or abs(off_y) > 0.12:       # deadzone avoids jitter
+                    yaw = _clamp(yaw - config.GAZE_YAW_GAIN * off_x, config.GAZE_MAX_YAW)
+                    pitch = _clamp(pitch + config.GAZE_PITCH_GAIN * off_y, config.GAZE_MAX_PITCH)
+                    if not self._head_busy:
+                        self._safe_goto(yaw, pitch, 0.4)
+            time.sleep(0.15)
 
     def _maybe_idle(self):
         """Occasionally make a small, gentle move so the robot looks alive."""
