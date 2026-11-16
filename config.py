@@ -38,7 +38,14 @@ HINT_DELAY_SECONDS = 1      # after options appear, wait this long before a hint
 DECISION_SECONDS = 20       # window to (not) press the celebration button
 FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 
-# Celebration dance played when the button is pressed (same in both conditions).
+# Built-in Reachy emotion played when the celebration button is pressed, from
+# Reachy Mini Control's Expressions library (plays with its own music). Try
+# "dance1", "dance2" or "dance3". Set CELEBRATION_EMOTION = "" to fall back to
+# the simple hand-coded dance below instead.
+CELEBRATION_EMOTION = "dance1"
+CELEBRATION_EMOTION_DATASET = "pollen-robotics/reachy-mini-emotions-library"
+
+# Hand-coded fallback dance (used only if CELEBRATION_EMOTION is "" or fails).
 # Options: "cheer", "spin", "bop", "wiggle".
 CELEBRATION_DANCE = "cheer"
 

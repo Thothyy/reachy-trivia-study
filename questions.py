@@ -47,7 +47,7 @@ QUESTIONS = [
         "image": None,
         "options": ["Jupiter", "Mercury", "Earth", "Saturn"],
         "answer": "Jupiter",
-        "hint": "The fastest-spinning planet is a gas giant, not the smallest planet.",
+        "hint": "The fastest-spinning planet is a gas giant, and it is not the smallest planet.",
     },
     {
         "id": "script",

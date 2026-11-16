@@ -88,6 +88,7 @@ class RobotController:
         self._connect_done = False            # True once the connection attempt has run
         self._idle = threading.Event()        # set while small idle fidgets are allowed
         self._clips = {}                      # spoken line -> cached/pre-rendered audio path
+        self._emotion_lib = None              # lazily loaded built-in emotion library
         threading.Thread(target=self._worker, daemon=True).start()
 
     def status_text(self):
@@ -120,6 +121,10 @@ class RobotController:
     def prewarm(self, texts):
         """Pre-render all the given lines now, so they play instantly later."""
         self._jobs.put(("prewarm", list(texts), None, None))
+
+    def play_emotion(self, name):
+        """Queue a built-in Reachy emotion/dance from the Expressions library."""
+        self._jobs.put(("emotion", name, None, None))
 
     def start_idle(self):
         """Allow small idle movements (used between questions)."""
@@ -171,6 +176,14 @@ class RobotController:
                         self._resolve(line)
                     except Exception:
                         pass
+                if self._mini is not None and config.CELEBRATION_EMOTION:
+                    try:
+                        self._emotions()           # warm the emotion library too
+                    except Exception:
+                        pass
+                continue
+            if kind == "emotion":
+                self._do_emotion(text)
                 continue
             if kind == "say":
                 self._do_say(text, gesture, on_done)
@@ -291,6 +304,24 @@ class RobotController:
             print(f"[robot] laptop audio failed: {exc}")
 
     # -- movement ----------------------------------------------------------
+    def _emotions(self):
+        """Lazily load the recorded-emotion library (cached after the first use)."""
+        if self._emotion_lib is None:
+            from reachy_mini.motion.recorded_move import RecordedMoves
+            self._emotion_lib = RecordedMoves(config.CELEBRATION_EMOTION_DATASET)
+        return self._emotion_lib
+
+    def _do_emotion(self, name):
+        """Play a named built-in emotion (motion + its own music) on the robot."""
+        if self._mini is None:
+            return
+        try:
+            move = self._emotions().get(name)
+            self._mini.play_move(move)                # motion + sidecar sound
+        except Exception as exc:
+            print(f"[robot] emotion '{name}' failed ({exc}); using the simple dance")
+            self._do_gesture(config.CELEBRATION_DANCE)
+
     def _run_dance(self, name):
         """Play a celebration dance sequence, then settle back to neutral."""
         from reachy_mini.utils import create_head_pose

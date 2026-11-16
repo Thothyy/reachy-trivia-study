@@ -368,7 +368,10 @@ class StudyApp(ctk.CTk):
         self.logger.save()
         self._celebrate_btn.configure(state="disabled", text="\U0001F389  Hooray!")
         self.robot.stop_idle()
-        self.robot.say("Woohoo!", gesture=config.CELEBRATION_DANCE)   # cheer + dance
+        if config.CELEBRATION_EMOTION:
+            self.robot.play_emotion(config.CELEBRATION_EMOTION)       # built-in dance + music
+        else:
+            self.robot.say("Woohoo!", gesture=config.CELEBRATION_DANCE)
         self._cancel_timers()
 
     def _decision_timeout(self):

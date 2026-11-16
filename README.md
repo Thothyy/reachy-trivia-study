@@ -56,9 +56,10 @@ Likert questionnaires are done **in person / on our own devices**.
 
 ## Editing
 
-Tunables (timings, the two request wordings, the celebration dance, and the
-voice `TTS_VOICE`) are at the top of `config.py`; the questions are in
-`questions.py`.
+Tunables (timings, the two request wordings, the celebration emotion
+`CELEBRATION_EMOTION` — a built-in Reachy dance like `dance1`/`dance2`/`dance3`
+played with its own music — and the voice `TTS_VOICE`) are at the top of
+`config.py`; the questions are in `questions.py`.
 
 **Voice.** Every line Reachy says is fixed, so it's **pre-rendered once and
 played instantly** — no live text-to-speech lag during the study. By default the
