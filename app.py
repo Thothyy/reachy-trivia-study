@@ -105,6 +105,7 @@ class StudyApp(ctk.CTk):
         return card
 
     def _on_close(self):
+        self.robot.stop_tracking()
         self.robot.shutdown()
         self.destroy()
 
@@ -193,6 +194,9 @@ class StudyApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _show_question(self):
         self._clear()
+        self.robot.stop_tracking()
+        self.robot.stop_idle()
+        self.robot.look_at(config.GAZE_SCREEN_YAW)   # look toward the laptop while reading
         question = QUESTIONS[self._q_index]
         self._hint_given = False
 
@@ -271,7 +275,7 @@ class StudyApp(ctk.CTk):
                 text_color=ACCENT, font=ctk.CTkFont(size=16, weight="bold"))
             self._after(config.HINT_DELAY_SECONDS, self._give_hint)
         else:
-            self.robot.gesture("thinking")              # a small reaction as the options appear
+            self._begin_gaze()                          # turn to the participant (and follow)
             self._q_enabled_at = time.time()
 
     def _give_hint(self):
@@ -290,10 +294,19 @@ class StudyApp(ctk.CTk):
             except Exception:
                 pass
         self._hint_status.configure(text="")
+        self._begin_gaze()                              # now turn to and follow the participant
         self._q_enabled_at = time.time()
+
+    def _begin_gaze(self):
+        """Turn to the participant and follow their face (or just hold, if off)."""
+        if config.GAZE_TRACKING:
+            self.robot.start_tracking()
+        else:
+            self.robot.look_at(config.GAZE_PARTICIPANT_YAW)
 
     def _answer(self, choice):
         """Record the answer, show neutral feedback, then move on."""
+        self.robot.stop_tracking()
         question = QUESTIONS[self._q_index]
         seconds = time.time() - self._q_enabled_at
         correct = choice == question["answer"]
@@ -320,6 +333,7 @@ class StudyApp(ctk.CTk):
     # ------------------------------------------------------------------ #
     def _show_celebration(self):
         self._clear()
+        self.robot.stop_tracking()
         self.robot.stop_idle()           # free the worker so the request is instant
 
         ctk.CTkLabel(self._container, text="Game over!",

@@ -67,6 +67,11 @@ DANCES = {
 }
 
 
+def _clamp(value, limit):
+    """Clamp a value to the range [-limit, limit]."""
+    return max(-limit, min(limit, value))
+
+
 class RobotController:
     """Owns the Reachy Mini connection and turns requests into speech + moves.
 
@@ -89,6 +94,9 @@ class RobotController:
         self._idle = threading.Event()        # set while small idle fidgets are allowed
         self._clips = {}                      # spoken line -> cached/pre-rendered audio path
         self._emotion_lib = None              # lazily loaded built-in emotion library
+        self._tracking = threading.Event()    # set while the face-tracking loop runs
+        self._gaze_active = False             # True while gaze (look/track) controls the head
+        self._head_busy = False               # True while the worker is moving the head
         threading.Thread(target=self._worker, daemon=True).start()
 
     def status_text(self):
@@ -133,6 +141,22 @@ class RobotController:
     def stop_idle(self):
         """Stop the idle movements (used while a question is on screen)."""
         self._idle.clear()
+
+    def look_at(self, yaw, pitch=0.0):
+        """Turn the head to a fixed yaw/pitch (degrees), e.g. toward the screen."""
+        self._jobs.put(("look", (yaw, pitch), None, None))
+
+    def start_tracking(self):
+        """Turn to the participant and follow their face with the camera."""
+        self._gaze_active = True
+        if not self._tracking.is_set():
+            self._tracking.set()
+            threading.Thread(target=self._track_loop, daemon=True).start()
+
+    def stop_tracking(self):
+        """Stop following the participant's face."""
+        self._tracking.clear()
+        self._gaze_active = False
 
     def shutdown(self):
         """Ask the worker to finish and release the robot."""
@@ -182,13 +206,23 @@ class RobotController:
                     except Exception:
                         pass
                 continue
-            if kind == "emotion":
-                self._do_emotion(text)
+            if kind == "look":
+                self._head_busy = True
+                try:
+                    self._do_look(text)
+                finally:
+                    self._head_busy = False
                 continue
-            if kind == "say":
-                self._do_say(text, gesture, on_done)
-            elif kind == "gesture":
-                self._do_gesture(text)
+            self._head_busy = True
+            try:
+                if kind == "emotion":
+                    self._do_emotion(text)
+                elif kind == "say":
+                    self._do_say(text, gesture, on_done)
+                elif kind == "gesture":
+                    self._do_gesture(text)
+            finally:
+                self._head_busy = False
         self._close()
 
     # -- speech ------------------------------------------------------------
@@ -372,9 +406,71 @@ class RobotController:
         except Exception as exc:
             print(f"[robot] gesture error: {exc}")
 
+    # -- gaze --------------------------------------------------------------
+    def _do_look(self, target):
+        """Turn the head to a fixed (yaw, pitch) in degrees."""
+        yaw, pitch = target
+        self._safe_goto(yaw, pitch, 0.6)
+
+    def _safe_goto(self, yaw, pitch, duration):
+        """goto_target to a head yaw/pitch (degrees), swallowing any error."""
+        if self._mini is None:
+            return
+        try:
+            from reachy_mini.utils import create_head_pose
+            self._mini.goto_target(
+                head=create_head_pose(yaw=yaw, pitch=pitch, degrees=True),
+                duration=duration)
+        except Exception:
+            pass
+
+    def _track_loop(self):
+        """Follow the largest detected face by keeping it centred in the camera.
+
+        The camera is on Reachy's head, so nudging the head toward the face keeps
+        it centred -- a simple visual-servo loop. Falls back to just holding the
+        participant direction if OpenCV or the robot camera is unavailable.
+        """
+        try:
+            import cv2
+        except Exception as exc:
+            print(f"[gaze] OpenCV unavailable ({exc}); holding participant gaze")
+            self._safe_goto(config.GAZE_PARTICIPANT_YAW, 0.0, 0.5)
+            return
+        cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        yaw, pitch = config.GAZE_PARTICIPANT_YAW, 0.0
+        self._safe_goto(yaw, pitch, 0.5)                 # first, turn to the participant
+
+        while self._tracking.is_set():
+            frame = None
+            if self._mini is not None:
+                try:
+                    frame = self._mini.media.get_frame()
+                except Exception:
+                    frame = None
+            if frame is None:
+                time.sleep(0.2)
+                continue
+            try:
+                gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) if frame.ndim == 3 else frame
+                faces = cascade.detectMultiScale(gray, 1.2, 5, minSize=(60, 60))
+            except Exception:
+                faces = []
+            if len(faces):
+                x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+                rows, cols = gray.shape[:2]
+                off_x = ((x + w / 2.0) - cols / 2.0) / (cols / 2.0)   # -1 .. 1
+                off_y = ((y + h / 2.0) - rows / 2.0) / (rows / 2.0)
+                yaw = _clamp(yaw - config.GAZE_YAW_GAIN * off_x, config.GAZE_MAX_YAW)
+                pitch = _clamp(pitch + config.GAZE_PITCH_GAIN * off_y, config.GAZE_MAX_PITCH)
+                if not self._head_busy:
+                    self._safe_goto(yaw, pitch, 0.25)
+            time.sleep(0.07)
+
     def _maybe_idle(self):
         """Occasionally make a small, gentle move so the robot looks alive."""
-        if self._mini is None or not self._idle.is_set():
+        if self._mini is None or not self._idle.is_set() or self._gaze_active:
             return
         if np.random.random() > 0.5:                # fidget about half the time
             return

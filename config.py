@@ -34,7 +34,7 @@ FINAL_REQUEST = {
 # Timing (seconds)
 # --------------------------------------------------------------------------- #
 READ_SECONDS = 4            # question shown alone before the options appear
-HINT_DELAY_SECONDS = 1      # after options appear, wait this long before a hint
+HINT_DELAY_SECONDS = 0.5    # after options appear, wait this long before a hint
 DECISION_SECONDS = 20       # window to (not) press the celebration button
 FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 
@@ -55,6 +55,24 @@ CELEBRATION_DANCE = "cheer"
 # Friendly options: en-GB-SoniaNeural, en-GB-RyanNeural, en-US-AriaNeural,
 #                   en-US-GuyNeural, en-AU-NatashaNeural.
 TTS_VOICE = "en-GB-SoniaNeural"
+
+# --------------------------------------------------------------------------- #
+# Gaze (where Reachy looks during the quiz)
+# --------------------------------------------------------------------------- #
+# Reachy sits to the participant's RIGHT (see the README diagram). While a
+# question is read it looks toward the laptop/task; when the options appear it
+# turns to the participant and (optionally) follows their face with its camera.
+# Tune these yaw angles (degrees) to your table; flip a sign if it turns the
+# wrong way. These are deliberately separate from FLIP_HEAD_DIRECTION so you can
+# dial the gaze in on the day without touching the pointing logic.
+GAZE_SCREEN_YAW = 30.0         # look toward the laptop/task while the question is read
+GAZE_PARTICIPANT_YAW = -30.0   # base turn toward the participant when the options appear
+
+GAZE_TRACKING = True           # False = just turn to the participant and hold (no camera)
+GAZE_YAW_GAIN = 25.0           # how hard to turn toward the face; flip the sign if it turns away
+GAZE_PITCH_GAIN = 12.0         # same, vertically
+GAZE_MAX_YAW = 50.0            # never turn the head past +/- this
+GAZE_MAX_PITCH = 18.0
 
 # --------------------------------------------------------------------------- #
 # Fixed wording (kept identical in both conditions)
