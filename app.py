@@ -11,13 +11,12 @@ in the same breath -- that is what makes the robot feel part of the task.
 """
 from __future__ import annotations
 
-import random
 import time
 
 import customtkinter as ctk
 
 import config
-from logger import ParticipantLogger
+from logger import ParticipantLogger, balanced_condition, participant_has_data
 from questions import QUESTIONS
 
 try:                                 # Pillow is only needed for the image questions
@@ -65,6 +64,7 @@ class StudyApp(ctk.CTk):
         self._image_ref = None           # keep a reference so the image is not GC'd
         self._decision_start = 0.0
         self._option_buttons = []        # the four answer buttons for this question
+        self._dup_pid = None             # a participant ID the user confirmed re-using
 
         # Pending timers I may need to cancel on a screen change.
         self._timers = []
@@ -137,9 +137,18 @@ class StudyApp(ctk.CTk):
                       font=ctk.CTkFont(size=16, weight="bold"),
                       command=self._start_session).pack(padx=60, pady=(28, 10))
 
+        self._setup_warning = ctk.CTkLabel(card, text="", text_color="#ffb454",
+                                           wraplength=360, justify="center",
+                                           font=ctk.CTkFont(size=13))
+        self._setup_warning.pack(padx=60, pady=(0, 6))
+
+        ctk.CTkButton(card, text="Test robot", width=160, height=36,
+                      fg_color=CARD, hover_color=ACCENT, font=ctk.CTkFont(size=13),
+                      command=self._test_robot).pack(pady=(0, 10))
+
         self._robot_status = ctk.CTkLabel(card, text="", text_color=TEXT_DIM,
                                           font=ctk.CTkFont(size=13))
-        self._robot_status.pack(padx=60, pady=(0, 34))
+        self._robot_status.pack(padx=60, pady=(0, 28))
         self._poll_robot_status()
 
     def _poll_robot_status(self):
@@ -151,10 +160,27 @@ class StudyApp(ctk.CTk):
         except Exception:
             pass
 
+    def _test_robot(self):
+        """Make Reachy wave and say hello, to check sound + movement."""
+        self.robot.say("Hello! I am ready.", gesture="wave")
+
     def _start_session(self):
         participant_id = self._pid_entry.get().strip() or "P00"
+
+        # Guard against silently adding a second row for an existing ID: warn
+        # once, and only proceed if the user presses Start again with that ID.
+        if participant_has_data(config.DATA_DIR, participant_id) and self._dup_pid != participant_id:
+            self._dup_pid = participant_id
+            self._setup_warning.configure(
+                text="⚠  That ID already has saved data. Change it, "
+                     "or press Start again to add another row.")
+            return
+
         choice = self._condition_var.get()
-        self.condition = random.choice(config.CONDITIONS) if choice == "auto" else choice
+        if choice == "auto":                         # keep the two groups close to even
+            self.condition = balanced_condition(config.DATA_DIR, config.CONDITIONS)
+        else:
+            self.condition = choice
         self.logger = ParticipantLogger(config.DATA_DIR, participant_id, self.condition)
         self._q_index = 0
         self.robot.start_idle()          # keep Reachy gently alive for the whole session

@@ -7,6 +7,7 @@ whether the celebration button was pressed and how quickly.
 from __future__ import annotations
 
 import csv
+import random
 from datetime import datetime
 from pathlib import Path
 
@@ -91,3 +92,43 @@ class ParticipantLogger:
             if write_header:
                 writer.writeheader()
             writer.writerow(row)
+
+
+def _summary_rows(data_dir):
+    """Yield the rows already saved in results.csv (empty if none yet)."""
+    path = Path(data_dir) / "results.csv"
+    if not path.exists():
+        return
+    try:
+        with open(path, newline="", encoding="utf-8") as handle:
+            yield from csv.DictReader(handle)
+    except Exception:
+        return
+
+
+def balanced_condition(data_dir, conditions):
+    """Pick the condition with the fewest saved participants so far.
+
+    Counts how many rows each condition has in results.csv and returns whichever
+    is behind (ties broken randomly), so the two groups stay close to even
+    without me having to assign them by hand.
+
+    Args:
+        data_dir: Folder holding results.csv.
+        conditions: The condition names to balance across.
+
+    Returns:
+        The chosen condition name.
+    """
+    counts = {c: 0 for c in conditions}
+    for row in _summary_rows(data_dir):
+        if row.get("condition") in counts:
+            counts[row["condition"]] += 1
+    fewest = min(counts.values())
+    return random.choice([c for c in conditions if counts[c] == fewest])
+
+
+def participant_has_data(data_dir, participant_id):
+    """Return True if this participant ID already has a row in results.csv."""
+    return any(row.get("participant_id") == participant_id
+               for row in _summary_rows(data_dir))

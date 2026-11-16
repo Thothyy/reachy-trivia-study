@@ -269,6 +269,13 @@ class RobotController:
                 self._mini.goto_target(head=create_head_pose(pitch=10, degrees=True),
                                        duration=0.3)
                 self._mini.goto_target(head=create_head_pose(), duration=0.3)
+            elif name == "wave":                    # friendly hello wave (robot test)
+                self._mini.goto_target(head=create_head_pose(yaw=10, degrees=True),
+                                       antennas=np.deg2rad([45, 10]), duration=0.3)
+                self._mini.goto_target(antennas=np.deg2rad([10, 45]), duration=0.3)
+                self._mini.goto_target(antennas=np.deg2rad([45, 10]), duration=0.3)
+                self._mini.goto_target(head=create_head_pose(),
+                                       antennas=np.zeros(2), duration=0.4)
         except Exception as exc:
             print(f"[robot] gesture error: {exc}")
 
