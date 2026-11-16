@@ -24,6 +24,46 @@ import wave
 import numpy as np
 
 
+# Celebration dances: each is a list of pose steps played in order when the
+# celebration button is pressed. Angles are in degrees; "ant" is the two antenna
+# angles, "body" is the body yaw, "dur" is that step's duration in seconds.
+DANCES = {
+    # A swaying little spin, antennas swinging.
+    "spin": [
+        {"body": 25, "yaw": 10, "ant": (40, -40), "dur": 0.45},
+        {"body": -25, "yaw": -10, "ant": (-40, 40), "dur": 0.45},
+        {"body": 25, "yaw": 10, "ant": (40, -40), "dur": 0.45},
+        {"body": -25, "yaw": -10, "ant": (-40, 40), "dur": 0.45},
+        {"dur": 0.5},
+    ],
+    # Nodding to a beat, antennas bouncing.
+    "bop": [
+        {"pitch": 14, "ant": (30, 30), "dur": 0.28},
+        {"pitch": -6, "ant": (-10, -10), "dur": 0.28},
+        {"pitch": 14, "ant": (30, 30), "dur": 0.28},
+        {"pitch": -6, "ant": (-10, -10), "dur": 0.28},
+        {"pitch": 14, "ant": (30, 30), "dur": 0.28},
+        {"dur": 0.4},
+    ],
+    # Head rolling side to side with a body sway.
+    "wiggle": [
+        {"roll": 16, "body": 12, "ant": (35, -35), "dur": 0.33},
+        {"roll": -16, "body": -12, "ant": (-35, 35), "dur": 0.33},
+        {"roll": 16, "body": 12, "ant": (35, -35), "dur": 0.33},
+        {"roll": -16, "body": -12, "ant": (-35, 35), "dur": 0.33},
+        {"dur": 0.4},
+    ],
+    # "Arms up" cheer: look up, antennas high, a couple of happy turns.
+    "cheer": [
+        {"pitch": -16, "ant": (55, 55), "dur": 0.4},
+        {"pitch": -10, "yaw": 12, "ant": (40, 40), "dur": 0.3},
+        {"pitch": -10, "yaw": -12, "ant": (40, 40), "dur": 0.3},
+        {"pitch": -16, "ant": (55, 55), "dur": 0.3},
+        {"dur": 0.5},
+    ],
+}
+
+
 class RobotController:
     """Owns the Reachy Mini connection and turns requests into speech + moves.
 
@@ -189,12 +229,28 @@ class RobotController:
             pass
 
     # -- movement ----------------------------------------------------------
+    def _run_dance(self, name):
+        """Play a celebration dance sequence, then settle back to neutral."""
+        from reachy_mini.utils import create_head_pose
+        for step in DANCES.get(name, DANCES["cheer"]):
+            head = create_head_pose(roll=step.get("roll", 0),
+                                    pitch=step.get("pitch", 0),
+                                    yaw=step.get("yaw", 0), degrees=True)
+            self._mini.goto_target(
+                head=head,
+                antennas=np.deg2rad(step.get("ant", (0, 0))),
+                body_yaw=float(np.deg2rad(step.get("body", 0))),
+                duration=step.get("dur", 0.4))
+
     def _do_gesture(self, name):
         """Play one of the fixed gestures. Silently does nothing without a robot."""
         if self._mini is None:
             return
         try:
             from reachy_mini.utils import create_head_pose
+            if name in DANCES:                      # a celebration dance sequence
+                self._run_dance(name)
+                return
             if name == "hint":                      # lean in, perk antennas (sharing a tip)
                 self._mini.goto_target(head=create_head_pose(pitch=12, degrees=True),
                                        antennas=np.deg2rad([35, -35]), duration=0.5)

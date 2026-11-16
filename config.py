@@ -38,6 +38,10 @@ HINT_DELAY_SECONDS = 1.5    # after options appear, wait this long before a hint
 DECISION_SECONDS = 20       # window to (not) press the celebration button
 FEEDBACK_SECONDS = 1.3      # how long the neutral "answer recorded" line shows
 
+# Celebration dance played when the button is pressed (same in both conditions).
+# Options: "cheer", "spin", "bop", "wiggle".
+CELEBRATION_DANCE = "cheer"
+
 # --------------------------------------------------------------------------- #
 # Fixed wording (kept identical in both conditions)
 # --------------------------------------------------------------------------- #
