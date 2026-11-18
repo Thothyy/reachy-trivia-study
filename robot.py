@@ -24,6 +24,7 @@ import wave
 import numpy as np
 
 import config
+import voice_cache
 
 
 # Celebration dances: each is a list of pose steps played in order when the
@@ -273,12 +274,16 @@ class RobotController:
             on_done()
 
     def _synth(self, text):
-        """Make a speech file: a natural edge-tts MP3, or a SAPI WAV if that fails.
+        """Make a speech file for `text`, preferring the committed neural clip.
 
-        edge-tts uses Microsoft's neural voices (TTS_VOICE in config) and needs
-        internet. If it can't be reached I fall back to the offline built-in
-        Windows voice, so speech is never lost -- just less natural.
+        Order: (1) a pre-rendered edge-tts clip shipped in assets/voice/ -- the
+        natural voice, offline, no internet needed; (2) a live edge-tts MP3 if
+        the clip is missing but Microsoft's servers are reachable; (3) the
+        built-in Windows voice as a last resort, so speech is never lost.
         """
+        pre = voice_cache.clip_path(text)
+        if pre.exists() and pre.stat().st_size > 0:
+            return str(pre)                       # committed neural-voice clip
         try:
             return self._synth_edge(text)
         except Exception as exc:

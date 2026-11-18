@@ -12,7 +12,8 @@ from pathlib import Path
 # --------------------------------------------------------------------------- #
 PROJECT_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = PROJECT_DIR / "assets"     # question images (flags, crests, scripts)
-DATA_DIR = PROJECT_DIR / "data"         # one results row per participant lands here
+VOICE_DIR = ASSETS_DIR / "voice"        # pre-rendered neural-voice clips (played offline)
+DATA_DIR = PROJECT_DIR / "data"         # the single results.csv lands here
 
 # --------------------------------------------------------------------------- #
 # Conditions (the independent variable: how the FINAL request is phrased)

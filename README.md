@@ -58,9 +58,13 @@ Ketchup** dance (with its music).
 
 ## Data
 
-Saved to `data/` (git-ignored, stays on the laptop):
-- `results.csv` — per participant: condition, score, **pressed_button**, **press_latency_s**.
-- `participant_<id>_detail.csv` — per-question answer, correctness, time, hint given.
+Everything lands in **one** file, `data/results.csv` (git-ignored, stays on the
+laptop) — one row per session. Each row has the condition, timestamps, trivia
+score, the outcome (**pressed_button**, **press_latency_s**), and every
+question's choice, correctness, time and whether a hint was given (the `q1_…`,
+`q2_…` columns). The row is rewritten after **every answer**, so a session closed
+early still leaves its data behind, and a reused participant ID makes a new row
+rather than overwriting the old one. Pick whatever metrics you need later.
 
 ## Not in the app
 
@@ -84,7 +88,16 @@ Tunables are at the top of `config.py`; the questions are in `questions.py`.
 - **Voice** — `TTS_VOICE` (see below).
 
 **Voice.** Reachy speaks with the natural **edge-tts** voice set by `TTS_VOICE`
-(default `en-GB-SoniaNeural`; needs internet, falls back to the built-in Windows
-voice offline). Every line is fixed, so they're all rendered once at start-up and
-played instantly — no lag during the study. Browse voices with
-`python -m edge_tts --list-voices`.
+(default `en-GB-SoniaNeural`). Because every line is fixed, the clips are
+**pre-rendered and committed** under `assets/voice/`, so the study laptop plays
+the natural voice straight from disk — **no internet needed during a session**
+(handy when a campus/managed network blocks Microsoft's speech servers). If a
+clip is missing it falls back to live edge-tts, then to the built-in Windows
+voice. After changing a hint, a request, the greeting or `TTS_VOICE`, re-make the
+clips on any machine with internet (a phone hotspot works) and commit them:
+
+```bash
+python prerender_voice.py
+```
+
+Browse voices with `python -m edge_tts --list-voices`.
