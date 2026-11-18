@@ -59,12 +59,19 @@ Ketchup** dance (with its music).
 ## Data
 
 Everything lands in **one** file, `data/results.csv` (git-ignored, stays on the
-laptop) — one row per session. Each row has the condition, timestamps, trivia
-score, the outcome (**pressed_button**, **press_latency_s**), and every
-question's choice, correctness, time and whether a hint was given (the `q1_…`,
-`q2_…` columns). The row is rewritten after **every answer**, so a session closed
-early still leaves its data behind, and a reused participant ID makes a new row
-rather than overwriting the old one. Pick whatever metrics you need later.
+laptop) — one row per session, with fixed column headers. Each row has the
+condition and timestamps, how long the session took, the behavioural outcome
+(**pressed_button** — defaults to `0` = not pressed — a **decision_status** of
+`pressed` / `declined` / `incomplete`, and **press_latency_s** for pressers), the
+trivia performance (score, accuracy, questions answered, hints given, mean
+question time), the run's settings, and every question's choice, correctness,
+time and hint in the `q1_…`, `q2_…` columns. The row is rewritten after **every
+answer, at the decision, and when the window closes**, so a session closed early
+still leaves its data behind (as `incomplete`, pressed `0`); a reused participant
+ID adds a new row rather than overwriting. Pick whatever metrics you need later.
+
+The questionnaire scales (reciprocity obligation, persuasiveness, legitimacy,
+decision conflict) are collected separately and are **not** in this file.
 
 ## Not in the app
 

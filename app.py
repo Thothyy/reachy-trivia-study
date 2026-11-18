@@ -105,6 +105,8 @@ class StudyApp(ctk.CTk):
         return card
 
     def _on_close(self):
+        if self.logger is not None:
+            self.logger.finalize()          # save even a half-finished session
         self.robot.stop_tracking()
         self.robot.shutdown()
         self.destroy()
@@ -398,8 +400,7 @@ class StudyApp(ctk.CTk):
     def _press_celebration(self):
         """Record the press and save; the goodbye line is already on screen."""
         latency = max(0.0, time.time() - self._decision_start)
-        self.logger.record_decision(True, latency)
-        self.logger.save()
+        self.logger.record_decision(True, latency)       # records and saves
         self._celebrate_btn.configure(state="disabled", text="\U0001F389  Hooray!")
         self.robot.stop_idle()
         if config.CELEBRATION_EMOTION:
@@ -410,10 +411,9 @@ class StudyApp(ctk.CTk):
         self._offer_restart()
 
     def _decision_timeout(self):
-        """The 20 seconds elapsed with no press: record it and save."""
-        if self.logger.pressed is None:
+        """The 20 seconds elapsed with no press: record the decline (and save)."""
+        if self.logger.decision_status == "incomplete":
             self.logger.record_decision(False, None)
-            self.logger.save()
         self.robot.stop_idle()
         self._offer_restart()
 

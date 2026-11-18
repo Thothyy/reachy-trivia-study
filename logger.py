@@ -1,14 +1,17 @@
-"""Writes everything from each session into ONE CSV: data/results.csv.
+"""Writes every app-side metric from each session into ONE CSV: data/results.csv.
 
-One row per session (one run of the study). The row carries the condition and
-timestamps, the trivia score, the key outcome (whether the celebration button
-was pressed and how fast), and -- spread across q1_*, q2_*, ... columns -- every
-question with the participant's choice, whether it was right, how long they took
-and whether a hint was given. Nothing is split into a second file.
+One row per session (one run of the study), with a fixed set of column headers.
+The row carries the condition and timestamps, how long the session took, the
+behavioural outcome (whether the celebration button was pressed -- defaulting to
+NO -- and, for pressers, how fast), the trivia performance, and -- spread across
+q1_*, q2_*, ... columns -- every question with the choice, correctness, time and
+whether a hint was given. The questionnaire scales are collected separately and
+are not part of this file.
 
-The row is (re)written after every answer and at the decision, so a session that
-is closed early still leaves its data behind. Each run gets a unique session_id,
-so re-using a participant ID makes a new row rather than overwriting the old one.
+The row is (re)written after every answer, at the decision, and when the window
+closes, so a session that is closed early still leaves its data behind (marked
+`incomplete`, pressed = 0). Each run gets a unique session_id, so re-using a
+participant ID adds a new row rather than overwriting the old one.
 """
 from __future__ import annotations
 
@@ -17,15 +20,20 @@ import random
 from datetime import datetime
 from pathlib import Path
 
+import config
 from questions import QUESTIONS
 
 RESULTS_FILE = "results.csv"
 
 # Session-level columns, then one block of these per question (q1_id, q1_text…).
 SESSION_FIELDS = [
-    "session_id", "participant_id", "condition", "started_at", "finished_at",
-    "num_questions", "trivia_score", "pressed_button", "press_latency_s",
-    "manipulation_answer",
+    "session_id", "participant_id", "condition",
+    "started_at", "finished_at", "duration_s",
+    "decision_status", "pressed_button", "press_latency_s",
+    "trivia_score", "num_questions", "questions_answered", "accuracy",
+    "num_hints_given", "mean_question_time_s",
+    "read_seconds", "hint_delay_seconds", "decision_seconds",
+    "tts_voice", "celebration_emotion",
 ]
 _PER_QUESTION = ["id", "text", "chosen", "correct_answer", "is_correct",
                  "seconds", "hint_given"]
@@ -60,9 +68,11 @@ class ParticipantLogger:
         self.session_id = f"{self.started_at:%Y%m%d-%H%M%S-%f}-{participant_id}"
         self._answers = []              # one dict per answered question, in order
         self.score = 0
-        self.pressed = None
+        # Button outcome defaults to "not pressed"; the 20-second window turns it
+        # into a deliberate "declined", a press turns it into "pressed".
+        self.pressed = False
         self.press_latency_s = None
-        self.manipulation_answer = None
+        self.decision_status = "incomplete"   # -> "pressed" / "declined" / stays incomplete
 
     # -- recording (each one saves, so a cut-short session is never lost) ---
     def record_answer(self, question_id, chosen, correct, seconds, hint_given):
@@ -79,30 +89,48 @@ class ParticipantLogger:
         self.save()
 
     def record_decision(self, pressed, latency_s):
-        """Store whether the celebration button was pressed and how fast, and save."""
-        self.pressed = pressed
+        """Store the celebration-button outcome (pressed + how fast), and save."""
+        self.pressed = bool(pressed)
         self.press_latency_s = None if latency_s is None else round(latency_s, 2)
+        self.decision_status = "pressed" if pressed else "declined"
         self.save()
 
-    def record_manipulation(self, answer):
-        """Store the manipulation-check answer, and save."""
-        self.manipulation_answer = answer
+    def finalize(self):
+        """Persist a final row when the window closes or a new participant starts.
+
+        If the session never reached a resolved decision it is saved as it stands
+        (pressed = 0, status = incomplete), so closing the window still logs it.
+        """
         self.save()
 
     # -- writing -----------------------------------------------------------
     def _row(self):
         """Build this session's full row (every question column included)."""
+        finished = datetime.now()
+        answered = len(self._answers)
+        times = [a["seconds"] for a in self._answers]
+        n = len(QUESTIONS)
         row = {
             "session_id": self.session_id,
             "participant_id": self.participant_id,
             "condition": self.condition,
             "started_at": self.started_at.isoformat(timespec="seconds"),
-            "finished_at": datetime.now().isoformat(timespec="seconds"),
-            "num_questions": len(QUESTIONS),
-            "trivia_score": self.score,
-            "pressed_button": "" if self.pressed is None else int(self.pressed),
+            "finished_at": finished.isoformat(timespec="seconds"),
+            "duration_s": round((finished - self.started_at).total_seconds(), 2),
+            "decision_status": self.decision_status,
+            "pressed_button": int(self.pressed),                     # default 0 = no
             "press_latency_s": "" if self.press_latency_s is None else self.press_latency_s,
-            "manipulation_answer": self.manipulation_answer or "",
+            "trivia_score": self.score,
+            "num_questions": n,
+            "questions_answered": answered,
+            "accuracy": round(self.score / n, 3) if n else "",
+            "num_hints_given": sum(a["hint_given"] for a in self._answers),
+            "mean_question_time_s": round(sum(times) / len(times), 2) if times else "",
+            "read_seconds": config.READ_SECONDS,
+            "hint_delay_seconds": config.HINT_DELAY_SECONDS,
+            "decision_seconds": config.DECISION_SECONDS,
+            "tts_voice": config.TTS_VOICE,
+            "celebration_emotion": config.CELEBRATION_EMOTION,
         }
         # The question itself is always known; answer columns fill in as answered.
         for i, q in enumerate(QUESTIONS, 1):
@@ -125,7 +153,7 @@ class ParticipantLogger:
 
     def save(self):
         """Rewrite data/results.csv with this session's row replacing any earlier
-        version of it, keeping every other session's row."""
+        version of it, keeping every other session's row and the fixed headers."""
         path = self._dir / RESULTS_FILE
         others = []
         if path.exists():
