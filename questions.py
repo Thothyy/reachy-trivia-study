@@ -10,29 +10,29 @@ Each question is a dict:
     hint     - Reachy's spoken hint (every question has one; it is spoken, not
                shown on screen)
 
-The new design uses ten questions and Reachy gives a hint on every one. Three of
-them (the flag, the crest and the script) show an image from assets/; the rest
-are text only. The questions are drawn from our group question bank, chosen so
-each has a hint that helps without giving the answer away.
+The design uses ten questions and Reachy gives a hint on every one. Two of them
+(the script and the crest) show an image from assets/; the rest are text only.
+The questions are drawn from our group question bank, chosen so each has a hint
+that helps without giving the answer away.
 """
 from __future__ import annotations
 
 QUESTIONS = [
     {
-        "id": "flag",
-        "text": "Which country's flag is this?",
-        "image": "flag_equatorial_guinea.png",
-        "options": ["Equatorial Guinea", "Gabon", "Guinea", "Cameroon"],
-        "answer": "Equatorial Guinea",
-        "hint": "This is the only country in Africa where Spanish is an official language.",
+        "id": "nobel",
+        "text": "Who was the first person to win Nobel Prizes in two different scientific fields?",
+        "image": None,
+        "options": ["Marie Curie", "Linus Pauling", "Albert Einstein", "Niels Bohr"],
+        "answer": "Marie Curie",
+        "hint": "She discovered two new elements, and named one of them after her home country.",
     },
     {
-        "id": "planet",
-        "text": "Which planet in our solar system has the shortest day?",
+        "id": "grammy",
+        "text": "Which artist has won the most Grammy Awards of all time?",
         "image": None,
-        "options": ["Jupiter", "Mercury", "Earth", "Saturn"],
-        "answer": "Jupiter",
-        "hint": "The fastest-spinning planet is a gas giant, and it is not the smallest planet.",
+        "options": ["Beyoncé", "Quincy Jones", "Georg Solti", "Taylor Swift"],
+        "answer": "Beyoncé",
+        "hint": "In 2023 she overtook the classical conductor who had held the record for decades. Her husband is a Grammy-winning rapper.",
     },
     {
         "id": "timezones",
@@ -40,23 +40,7 @@ QUESTIONS = [
         "image": None,
         "options": ["France", "Russia", "USA", "UK"],
         "answer": "France",
-        "hint": "Its overseas territories are scattered across every ocean.",
-    },
-    {
-        "id": "crest",
-        "text": "Which football club's crest is this?",
-        "image": "crest_fiorentina.png",
-        "options": ["Fiorentina", "AS Roma", "Torino", "Lazio"],
-        "answer": "Fiorentina",
-        "hint": "This Italian club is nicknamed La Viola, after the purple it plays in.",
-    },
-    {
-        "id": "element",
-        "text": "Which chemical element has the symbol W?",
-        "image": None,
-        "options": ["Tungsten", "Tin", "Titanium", "Zinc"],
-        "answer": "Tungsten",
-        "hint": "Its symbol comes from its German name, and it was used in old light-bulb filaments.",
+        "hint": "Its overseas territories are scattered across every ocean, from the Pacific to the Indian Ocean.",
     },
     {
         "id": "pyramids",
@@ -64,7 +48,15 @@ QUESTIONS = [
         "image": None,
         "options": ["Sudan", "Egypt", "Mexico", "Peru"],
         "answer": "Sudan",
-        "hint": "It's not Egypt, but it is Egypt's southern neighbour.",
+        "hint": "Surprisingly, it isn't Egypt. The ancient Kingdom of Kush built over 200 smaller pyramids further up the Nile.",
+    },
+    {
+        "id": "element",
+        "text": "Which chemical element has the symbol W?",
+        "image": None,
+        "options": ["Tungsten", "Tin", "Titanium", "Zinc"],
+        "answer": "Tungsten",
+        "hint": "It's the metal that glowed inside old light-bulb filaments. The W comes from its German name.",
     },
     {
         "id": "script",
@@ -72,7 +64,15 @@ QUESTIONS = [
         "image": "script_javanese.png",
         "options": ["Javanese", "Thai", "Khmer", "Burmese"],
         "answer": "Javanese",
-        "hint": "This script comes from the world's most populous island.",
+        "hint": "This script comes from an island that shares its name with a programming language and a type of coffee.",
+    },
+    {
+        "id": "islands",
+        "text": "Which country has the most islands?",
+        "image": None,
+        "options": ["Sweden", "Indonesia", "Philippines", "Canada"],
+        "answer": "Sweden",
+        "hint": "Forget the tropics. Think of a cold Nordic coastline broken into more than 200,000 tiny islands.",
     },
     {
         "id": "scotland",
@@ -80,22 +80,22 @@ QUESTIONS = [
         "image": None,
         "options": ["Unicorn", "Red deer", "Golden eagle", "Highland cow"],
         "answer": "Unicorn",
-        "hint": "It appears on the royal coat of arms alongside a lion.",
+        "hint": "It doesn't exist. Look at the UK royal coat of arms: it's the one standing opposite the lion.",
     },
     {
-        "id": "octopus",
-        "text": "Which animal has three hearts?",
+        "id": "berry",
+        "text": "Which of these fruits is botanically a berry?",
         "image": None,
-        "options": ["Octopus", "Jellyfish", "Starfish", "Seahorse"],
-        "answer": "Octopus",
-        "hint": "It's a soft-bodied sea creature that can change colour and squirt ink.",
+        "options": ["Banana", "Strawberry", "Raspberry", "Cherry"],
+        "answer": "Banana",
+        "hint": "The fruits with 'berry' in their names are the impostors.",
     },
     {
-        "id": "petra",
-        "text": "In which country is the ancient city of Petra?",
-        "image": None,
-        "options": ["Jordan", "Egypt", "Syria", "Lebanon"],
-        "answer": "Jordan",
-        "hint": "This kingdom lies between Israel and Saudi Arabia, touching both the Dead Sea and the Red Sea.",
+        "id": "crest",
+        "text": "Which football club's badge is this?",
+        "image": "crest_fiorentina.png",
+        "options": ["Fiorentina", "Parma", "Torino", "Sampdoria"],
+        "answer": "Fiorentina",
+        "hint": "The lily on the badge is the symbol of the city where the Renaissance began.",
     },
 ]
