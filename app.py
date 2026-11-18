@@ -131,10 +131,15 @@ class StudyApp(ctk.CTk):
 
         ctk.CTkLabel(card, text="Condition",
                      font=ctk.CTkFont(size=14)).pack(anchor="w", padx=60)
+        # On-screen the two conditions are shown blinded as "Condition 1" and
+        # "Condition 2" so the names don't cue the experimenter. The stored value
+        # and the CSV keep the real names.
+        #   Condition 1 = neutral
+        #   Condition 2 = reciprocity
         self._condition_var = ctk.StringVar(value="auto")
-        for label, value in [("Auto (random)", "auto"),
-                             ("Neutral", config.NEUTRAL),
-                             ("Reciprocity", config.RECIPROCITY)]:
+        for label, value in [("Auto", "auto"),
+                             ("Condition 1", config.NEUTRAL),       # Condition 1 = neutral
+                             ("Condition 2", config.RECIPROCITY)]:  # Condition 2 = reciprocity
             ctk.CTkRadioButton(card, text=label, value=value,
                                variable=self._condition_var).pack(anchor="w", padx=72, pady=3)
 
